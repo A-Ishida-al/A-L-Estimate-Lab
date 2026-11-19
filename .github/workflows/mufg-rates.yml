@@ -1,0 +1,74 @@
+# 三菱UFJ銀行の公表相場（TTS・TTB）を平日に読み取り、rates.json を更新します。
+name: 三菱UFJ為替レート取得
+on:
+  schedule:
+    - cron: '17 3 * * 1-5'   # 平日 12:17（日本時間）
+    - cron: '17 7 * * 1-5'   # 平日 16:17（日本時間）取り直し
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 公表相場を読み取る
+        run: |
+          python3 - <<'PY'
+          import re, json, html, datetime, urllib.request, sys
+          URL = 'https://www.murc-kawasesouba.jp/fx/index.php'
+          raw = urllib.request.urlopen(urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0 (quote-app rates)'}), timeout=30).read()
+          for enc in ('utf-8', 'cp932', 'euc-jp'):
+              try:
+                  t = raw.decode(enc); break
+              except UnicodeDecodeError:
+                  continue
+          t = re.sub(r'(?is)<(script|style)\b.*?</\1>', '', t)
+          t = re.sub(r'(?i)</t[dh]\s*>', '|', t)
+          t = re.sub(r'(?i)<tr\b[^>]*>', '\n|', t)
+          t = html.unescape(re.sub(r'<[^>]+>', ' ', t))
+          t = re.sub(r'[ \t\u3000\xa0]+', ' ', t)
+          m = re.search(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', t)
+          jst = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
+          date = f'{int(m[1]):04d}-{int(m[2]):02d}-{int(m[3]):02d}' if m else jst.strftime('%Y-%m-%d')
+          LIM = {'USD': (80, 300), 'EUR': (80, 350), 'KRW': (0.03, 0.5), 'CNY': (8, 60)}
+          try:
+              prev = json.load(open('rates.json', encoding='utf-8'))
+          except Exception:
+              prev = {}
+          out, stale = {}, []
+          for c, (lo, hi) in LIM.items():
+              mm = re.search(r'\|\s*' + c + r'\s*\|\s*([\d,.]+)\s*\|\s*([\d,.]+)\s*\|', t)
+              v = None
+              if mm:
+                  tts, ttb = (float(x.replace(',', '')) for x in mm.groups())
+                  if c == 'KRW' and tts > 1:
+                      tts, ttb = tts / 100, ttb / 100
+                  if lo <= ttb <= tts <= hi:
+                      v = {'tts': round(tts, 6), 'ttb': round(ttb, 6)}
+              if v is None:
+                  stale.append(c)
+                  v = prev.get('rates', {}).get(c)
+              if v:
+                  out[c] = v
+          if len(stale) == len(LIM):
+              print('レートを読み取れませんでした（未公表か、ページの形が変わった可能性）。rates.json は変更しません。')
+              sys.exit(0)
+          data = {
+              'source': '三菱UFJ銀行 公表相場（対顧客外国為替相場）',
+              'url': URL,
+              'date': date,
+              'fetched_at': datetime.datetime.utcnow().replace(microsecond=0).isoformat() + 'Z',
+              'note': 'KRWは1ウォンあたりの円（銀行の表示は100ウォンあたり）',
+              'rates': out,
+              'stale': stale,
+          }
+          json.dump(data, open('rates.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+          print(json.dumps(data, ensure_ascii=False))
+          PY
+      - name: 変わっていれば保存する
+        run: |
+          git config user.name "rates-bot"
+          git config user.email "rates-bot@users.noreply.github.com"
+          git add rates.json
+          if git diff --cached --quiet; then echo "変更なし"; else git commit -m "三菱UFJレート更新 $(TZ=Asia/Tokyo date +%F)" && git push; fi
