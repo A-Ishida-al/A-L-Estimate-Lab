@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#00a86b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>A&amp;L Estimate Lab</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-title" content="EstiLab">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&family=Schibsted+Grotesk:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 実務の帳票。静かで正確、数字が主役。
+   IDEA: 薬袋ラベルのように区切られた見積票。粗利率が一枚のラベルに大きく印字される。
+   PICTURE: 粗利率ラベル（緑＝健全／赤＝警告）と警告ライン付きメーター、横に合計の淡ピンク札。
+   COLOUR and TYPE: 白・エメラルド・淡ピンク・黒、警告だけ赤。Schibsted Grotesk + Noto Sans JP。
+   LAYOUT: 上にラベル帯、下に入力カード。980px未満で明細は札型に組み替え。 */
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#04140d);--ink:light-dark(#0b1a13,#e6f2eb);--mut:light-dark(#56665e,#9db3a7);
+--line:light-dark(#d5e0da,#1f3d2f);--card:light-dark(#ffffff,#071c15);--soft:light-dark(#f2f8f4,#0b281e);
+--em:#00a86b;--emd:light-dark(#00754a,#4fdca5);--pink:light-dark(#ffd6e0,#35202a);--pinkink:light-dark(#4a1525,#ffdbe4);
+--red:#d7263d;--redsoft:light-dark(#fde4e7,#3a1118);--redink:light-dark(#a3122a,#ff9eaa)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Schibsted Grotesk","Noto Sans JP",system-ui,sans-serif;overflow-x:clip}
+h2{font-size:20px;line-height:1.2;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);padding:0 14px;font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--em);outline-offset:1px}
+input,select,textarea{width:100%;min-height:44px;font-size:16px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:8px 10px}
+textarea{min-height:76px;resize:vertical}
+select{padding-inline:6px}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.top{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px max(5vw,16px);background:var(--bg);border-bottom:1px solid var(--line)}
+.brand b{font-size:18px;font-weight:800}.brand span{display:block;font-size:13px;color:var(--mut)}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.pri{background:var(--em);border-color:var(--em);color:#fff}
+.pri2{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.saved{font-size:13px;color:var(--mut);align-self:center}
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+.lab{background:var(--em);color:#fff;padding:clamp(22px,3.5vw,44px) max(5vw,16px);transition:background .3s}
+.hero[data-s=bad] .lab{background:var(--red)}.hero[data-s=na] .lab{background:#56665e}
+.lt{font-weight:700;display:flex;gap:12px;flex-wrap:wrap;align-items:baseline}.lt small{font-weight:400;font-size:14px;opacity:.9}
+.big{font:800 clamp(64px,12vw,128px)/1 "Schibsted Grotesk",sans-serif;letter-spacing:-.03em;margin:8px 0 18px;font-variant-numeric:tabular-nums}
+.meter{position:relative;height:12px;background:rgba(255,255,255,.28);border-radius:6px}
+.meter i{position:absolute;inset:0 auto 0 0;background:#fff;border-radius:6px;transition:width .3s}
+.meter b{position:absolute;top:-7px;bottom:-7px;width:3px;margin-left:-1px;background:#0b1a13}
+.ticks{display:flex;justify-content:space-between;font-size:13px;opacity:.9;margin-top:8px}
+.lstate{margin:14px 0 0;font-weight:600}
+.figs{background:var(--pink);color:var(--pinkink);padding:clamp(22px,3.5vw,44px) max(5vw,16px)}
+.f1 span{font-weight:700}.f1 b{display:block;font-size:clamp(30px,4.4vw,48px);line-height:1.1;font-weight:800;margin:4px 0 16px}
+.figs dl{display:grid;grid-template-columns:auto auto;gap:6px 16px;margin:0;justify-content:start}
+.figs dt{font-size:14px}.figs dd{margin:0;text-align:right;font-weight:600}
+.figs p{font-size:13px;margin:14px 0 0}
+#alerts:not(:empty){background:var(--redsoft);color:var(--redink);padding:14px max(5vw,16px)}
+#alerts b{display:block}#alerts ul{margin:6px 0 0;padding-left:20px}
+.band{padding:clamp(22px,3.5vw,44px) max(5vw,16px)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;align-items:start}
+.card{border:1px solid var(--line);border-radius:14px;padding:18px;background:var(--card)}
+.card h2{margin-bottom:14px}
+.fg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.fg label{display:block;font-size:13px;color:var(--mut);font-weight:600}
+.fg label>input,.fg label>select,.fg label>textarea,.fg label>.pair{margin-top:4px;color:var(--ink)}
+.s2{grid-column:span 2}.s4{grid-column:1/-1}
+.pair{display:flex;gap:6px}.pair select{width:84px;flex:none}
+.hint{font-size:13px;color:var(--mut);margin:6px 0 0}
+.rr{display:grid;grid-template-columns:64px minmax(0,1.2fr) minmax(0,.8fr) minmax(0,1.2fr);gap:8px;align-items:center;margin-bottom:8px}
+.rr small{display:block;font-size:12px;color:var(--mut);white-space:normal}.rr .rate{font-size:15px;color:var(--emd);white-space:normal}
+.rrh{font-size:13px;color:var(--mut);font-weight:600;margin-bottom:2px}
+.rr label{font-weight:600;white-space:nowrap}
+.rr .mini{grid-column:2/-1;min-height:32px;font-size:13px;color:var(--redink);background:var(--redsoft);border-color:transparent;justify-self:start}
+#rstat{font-size:13px;margin:4px 0 12px;padding:8px 10px;border-radius:8px;background:var(--soft)}
+#rstat[data-s=bad]{background:var(--redsoft);color:var(--redink);font-weight:600}
+.bh{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;margin-bottom:14px}.bh span{color:var(--mut);font-size:14px}
+.cat{border:1px solid var(--line);border-radius:14px;margin-bottom:16px;overflow:hidden;background:var(--card)}
+.cath{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;background:var(--soft);border-bottom:1px solid var(--line)}
+.cname{flex:1 1 300px;display:flex;gap:6px}
+.catname{flex:1;font-weight:700;font-size:18px}
+.accsel{flex:none;width:150px;font-size:14px;color:var(--emd);font-weight:600}
+.catnote{flex:1 1 100%;font-size:14px;min-height:38px;background:transparent;border-style:dashed;color:var(--ink)}
+.catnote:not(:placeholder-shown){border-style:solid;background:var(--card);font-weight:600}
+.sh{font-size:15px;margin:20px 0 8px}.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tag{display:inline-flex;align-items:center;gap:2px;background:var(--soft);border:1px solid var(--line);border-radius:99px;padding-left:12px;font-size:14px}
+.tag button{min-height:36px;width:36px;padding:0;border:0;background:transparent;font-size:16px}
+.catamt{font-size:14px;color:var(--mut)}
+.dtl{font-size:13px;font-weight:600;color:var(--emd);white-space:nowrap}.dtl input{width:18px;height:18px;min-height:18px}
+.cat:has(.dtl input:not(:checked)) .cath{background:light-dark(#f4f4f4,#10241c)}
+.dall{display:inline-flex;gap:6px;align-items:center;margin-left:auto;font-size:13px}.dall button{min-height:34px;font-size:13px;padding:0 10px}
+.catbtn{display:flex;gap:6px;margin-left:auto}
+.ib{width:44px;padding:0;font-size:18px}
+.chip{display:inline-block;font-size:13px;font-weight:700;padding:3px 9px;border-radius:99px;background:var(--soft);color:var(--mut);white-space:nowrap}
+.chip[data-s=ok]{background:light-dark(#dff5ea,#0e3a29);color:var(--emd)}
+.chip[data-s=bad]{background:var(--red);color:#fff}
+.rows{padding:6px 14px}
+.rh,.row{display:grid;grid-template-columns:1.1fr 1.5fr 64px 64px 1.4fr 1.4fr 1.1fr 72px 44px;gap:8px;align-items:start}
+.rh{font-size:13px;color:var(--mut);font-weight:600;padding:6px 0}
+.rh span:nth-child(n+7){text-align:right}
+.row{padding:8px 0;border-top:1px solid var(--line)}
+.row[data-s=bad]{box-shadow:inset 4px 0 0 var(--red);background:var(--redsoft);margin-inline:-14px;padding-inline:14px}
+.ml{display:none;font-size:13px;color:var(--mut);font-weight:600}
+.ta{min-height:44px;height:44px;resize:none;overflow:hidden;line-height:1.4;padding-top:10px}
+.mon{display:flex;gap:4px}.mon select{width:76px;flex:none}
+.tg{min-height:32px;margin-top:4px;font-size:13px;padding:0 8px;color:var(--emd);background:transparent;border-style:dashed;width:100%}
+.c-amt{text-align:right;padding-top:10px}.c-amt b{display:block}.c-amt small{display:block;color:var(--mut);font-size:13px}
+.c-m{text-align:right;padding-top:10px}
+.add{margin:6px 14px 14px;border-style:dashed;color:var(--emd)}
+.add.big{margin:0;width:100%}
+details summary{font-weight:700;font-size:20px;cursor:pointer;min-height:44px;display:flex;align-items:center}
+details[open] summary{margin-bottom:14px}
+footer{padding:0 max(5vw,16px) 40px;color:var(--mut);font-size:13px}
+#modal{position:fixed;inset:0;z-index:50;background:rgba(4,20,13,.55);display:grid;place-items:center;padding:16px}
+#modal[hidden],#xdlg[hidden],#pv[hidden],#gd[hidden],#imp[hidden]{display:none}
+#imp{position:fixed;inset:0;z-index:57;background:rgba(4,20,13,.55);display:grid;place-items:center;padding:16px}
+.isl{list-style:none;margin:8px 0;padding:0;max-height:52vh;overflow:auto}.isl li{display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-top:1px solid var(--line)}
+.isl li input{width:20px;height:20px;min-height:20px;margin-top:3px;accent-color:var(--em);flex:none}.isl li span{display:block;font-size:12px;color:var(--mut)}.isl .tag2{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;background:light-dark(#dff5ea,#0e3a29);color:var(--emd);margin-left:6px}
+.isum{background:var(--soft);border-radius:10px;padding:10px 14px;margin:8px 0;font-size:14px}.isum b.ng{color:var(--redink)}.isum b.ok{color:var(--emd)}
+#gd{position:fixed;inset:0;z-index:60;background:rgba(4,20,13,.55);display:grid;place-items:center;padding:16px}
+.gdl{list-style:none;margin:12px 0 0;padding:0;max-height:50vh;overflow:auto}.gdl li{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)}
+.gdl li span{display:block;font-size:12px;color:var(--mut)}.gdl li button{min-height:38px;flex:none}
+.xdr{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;background:var(--soft);border-radius:10px;padding:8px 12px;margin:0 0 12px;font-size:14px}.xdr .dst{flex:1 1 160px}.xdr button{min-height:36px}.xdr .w{color:var(--redink)}
+.ck{display:inline-flex;gap:8px;align-items:center;font-weight:600}.ck input{width:20px;min-height:20px;height:20px;accent-color:var(--em)}
+#pv{position:fixed;inset:0;z-index:58;background:#525659;display:flex;flex-direction:column}
+.pvbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:8px 16px;background:#323639;color:#fff}.pvbar span{flex:1 1 200px;font-size:13px;opacity:.85}
+.pvbar button{min-height:40px}.pvbar button:not(.pri){background:transparent;color:#fff;border-color:rgba(255,255,255,.5)}
+#pvbody{flex:1;overflow:auto;width:100%;padding:16px 0 40px;display:flex;flex-direction:column;align-items:center}
+.pvw{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.4);overflow:hidden;flex:none}.pvn{color:#ddd;font-size:12px;margin:6px 0 14px}
+#xdlg{position:fixed;inset:0;z-index:55;background:rgba(4,20,13,.55);display:grid;place-items:center;padding:16px}
+.xp{width:min(520px,100%)}.xp h2{margin-bottom:12px}
+.xq{font-size:17px;line-height:1.7;margin:0 0 10px}.xq b{font-size:22px;color:var(--emd)}
+.xd{margin:0 0 10px;padding-left:20px;font-size:13px;color:var(--mut)}
+.xw{color:var(--redink);font-size:14px;font-weight:600;margin:6px 0}.xw:empty{display:none}
+.xr{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:8px;align-items:center;margin:8px 0;font-weight:700}
+.xbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.xbtns button{flex:1 1 160px}
+.panel{background:var(--bg);border-radius:16px;width:min(760px,100%);max-height:88vh;overflow:auto;padding:20px}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+#list{list-style:none;margin:0;padding:0}
+#list li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px 12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+#list li span{font-size:13px;color:var(--mut);display:block}
+#list .lb{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
+#list .lb button{min-height:36px}
+#list .cur{box-shadow:inset 4px 0 0 var(--em);padding-left:12px}
+.bk{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+#toast{position:fixed;left:50%;bottom:18px;transform:translate(-50%,140%);background:var(--ink);color:var(--bg);padding:8px 8px 8px 16px;border-radius:12px;display:flex;gap:10px;align-items:center;z-index:60;transition:transform .25s;max-width:calc(100% - 24px)}
+#toast.on{transform:translate(-50%,0)}#toast:not(.on){visibility:hidden}#toast button{min-height:36px;background:transparent;color:var(--bg);border-color:currentColor}
+@media(max-width:979px){
+ .rh{display:none}.ml{display:block}
+ .row{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:10px}
+ .c-item,.c-desc,.c-price,.c-cost{grid-column:span 2}.c-amt{grid-column:1/-1;text-align:left;padding-top:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+ .c-amt .ml{width:100%}.c-m{text-align:left;padding-top:0}.c-del{align-self:end;justify-self:end}
+ .grid2{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:700px){.hero{grid-template-columns:minmax(0,1fr)}.fg{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.cname{flex-wrap:wrap}.accsel{width:100%}.c-item,.c-desc,.c-price,.c-cost{grid-column:1/-1}.acts button{padding:0 10px;font-size:14px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+ <div class="brand"><b>A&amp;L Estimate Lab</b><span>JPY・USD・EUR・KRW・CNY／粗利はJPY換算</span></div>
+ <nav class="acts">
+  <span class="saved" id="saved"></span>
+  <button id="bInst" hidden>アプリとして追加</button><button id="bNew">新規</button><button id="bList">保存一覧</button><button id="bImp2">Excel読み込み</button><input id="impFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+  <button id="bX" class="pri">Excel書き出し（社外用＋社内用）</button><button id="bV">プレビュー</button><button id="bP" class="pri2">PDF書き出し（社外用）</button>
+ </nav>
+</header>
+<main>
+<section class="hero" id="hero" data-s="ok" aria-live="polite">
+ <div class="lab">
+  <div class="lt">粗利率 <small id="thl"></small></div>
+  <div class="big" id="mpct">—</div>
+  <div class="meter"><i id="mfill"></i><b id="mth"></b></div>
+  <div class="ticks"><span>0%</span><span>25%</span><span>50%以上</span></div>
+  <p class="lstate" id="lstate"></p>
+ </div>
+ <div class="figs">
+  <div class="f1"><span>合計（税込）</span><b class="num" id="fTotal"></b></div>
+  <dl>
+   <dt>小計（税抜）</dt><dd class="num" id="fSub"></dd>
+   <dt>原価合計</dt><dd class="num" id="fCost"></dd>
+   <dt>粗利</dt><dd class="num" id="fPr"></dd>
+   <dt>粗利（円換算）</dt><dd class="num" id="fPrJ"></dd>
+   <dt>管理費</dt><dd class="num" id="fMg"></dd>
+   <dt>値引き</dt><dd class="num" id="fDisc"></dd>
+   <dt>消費税</dt><dd class="num" id="fTax"></dd>
+  </dl>
+  <p id="fnote"></p>
+ </div>
+</section>
+<div id="alerts"></div>
+
+<section class="band grid2">
+ <div class="card" id="info">
+  <h2>見積情報</h2>
+  <div class="fg">
+   <label class="s2">案件名<input data-f="title"></label>
+   <label class="s2">宛先（会社名・屋号・個人名）<input data-f="client"></label>
+   <label>敬称<select data-f="honor" id="honorSel"><option value="御中">御中（会社・団体）</option><option value="様">様（個人・個人事業主）</option><option value="">なし</option></select></label>
+   <label>担当者名（任意）<input data-f="attn" placeholder="例：山田 太郎"></label>
+   <label>日付<input data-f="date" type="date"></label>
+   <label>提出通貨<select data-f="sub" id="subSel"></select></label>
+   <label>見積書の言語<select data-f="lang"><option value="ja">日本語</option><option value="en">English</option></select></label>
+   <label>消費税率 %<input data-f="tax" type="number" inputmode="decimal" step="any"></label>
+   <label>管理費率 %<input data-f="mgmt" type="number" inputmode="decimal" step="any"></label>
+   <label>管理費の名称<input data-f="mgLabel" placeholder="管理費"></label>
+   <label class="s2">値引き<span class="pair"><select data-f="discType"><option value="amt">金額</option><option value="pct">％</option></select><input data-f="disc" type="number" inputmode="decimal" step="any"></span></label>
+   <label>目標上乗せ率 %<input data-f="markup" type="number" inputmode="decimal" step="any"></label>
+   <label class="s4">MEMO<textarea data-f="memo"></textarea></label>
+  </div>
+  <p class="hint" id="toPrev"></p><p class="hint" id="discHint"></p>
+ </div>
+ <div class="card" id="ratebox">
+  <h2>為替レート</h2>
+  <p id="rstat">最新レートを取得中…</p>
+  <div id="rgrid"></div>
+  <button id="bRate" style="width:100%">最新レートを読み込む</button>
+  <p class="hint">三菱UFJ銀行の仲値（TTSとTTBの中間）に、通貨ごとの上乗せを足したレートで、売値・原価とも計算します。上乗せはすべての見積に共通です。KRWは銀行の表示に合わせて100ウォンあたりで表示しています。</p>
+ </div>
+</section>
+
+<section class="band" style="padding-top:0">
+ <div class="bh"><h2>明細</h2><span id="curNote"></span><span class="dall">詳細ページ：<button type="button" data-act="dtlall" data-v="1">すべて作る</button><button type="button" data-act="dtlall" data-v="0">すべて作らない</button></span></div>
+ <div id="cats"></div>
+ <button class="add big" id="bAddCat">＋ カテゴリを追加</button>
+</section>
+
+<section class="band" style="padding-top:0">
+ <details class="card" id="setbox">
+  <summary>自社情報・警告ライン</summary>
+  <div class="fg">
+   <label class="s2">会社名<input data-is="company"></label>
+   <label class="s2">事業部<input data-is="dept"></label>
+   <label>郵便番号<input data-is="zip"></label>
+   <label class="s2">住所<input data-is="addr"></label>
+   <label>担当者<input data-is="person"></label>
+   <label class="s4" style="margin-top:6px;color:var(--ink)">英語の見積で使う自社情報（空欄の項目は日本語のまま出ます）</label>
+   <label class="s2">会社名（英語）<input data-ie="company" placeholder="例：A&amp;L Project Co., Ltd."></label>
+   <label class="s2">事業部（英語）<input data-ie="dept"></label>
+   <label class="s2">住所（英語・郵便番号込み）<input data-ie="addr" placeholder="例：1F, 2-33-6 Nihonbashi-Hamacho, Chuo-ku, Tokyo 103-0007, Japan"></label>
+   <label class="s2">担当者（英語）<input data-ie="person"></label>
+   <label>粗利の警告ライン %<input id="thIn" type="number" inputmode="decimal" step="any"></label>
+  </div>
+  <h3 class="sh">Googleドライブ自動保存</h3><div id="drvSet"><p class="hint">確認中…</p></div>
+  <h3 class="sh">登録した科目</h3><div id="accList" class="tags"></div>
+  <p class="hint">ここの内容はすべての見積で共通です。見積データはこの端末のブラウザに保存されます。別の端末へ移すときは「保存一覧」のバックアップを使ってください。</p>
+ </details>
+</section>
+<footer>初回に表示される見積はサンプルです（数字は基本フォーマットをもとに一部を省略し、現地EUR原価の行を1つ加えています）。</footer>
+</main>
+
+<div id="modal" hidden>
+ <div class="panel" role="dialog" aria-modal="true" aria-labelledby="mh">
+  <div class="ph"><h2 id="mh">保存した見積</h2><button id="bClose">閉じる</button></div>
+  <ul id="list"></ul>
+  <div class="bk"><button id="bExp">バックアップを書き出す（JSON）</button><label class="bkl"><button id="bImpB" type="button">バックアップを読み込む</button><input id="bImp" type="file" accept=".json,application/json" hidden></label></div>
+ </div>
+</div>
+<div id="xdlg" hidden>
+ <div class="panel xp" role="dialog" aria-modal="true" aria-labelledby="xh">
+  <h2 id="xh">書き出し前の確認</h2><div id="xbody"></div><div class="xbtns" id="xbtns"></div>
+ </div>
+</div>
+<div id="pv" hidden role="dialog" aria-modal="true" aria-label="PDFプレビュー">
+ <div class="pvbar"><b>PDFプレビュー</b><span id="pvnote"></span><button id="pvPdf" class="pri">このままPDFを書き出す</button><button id="pvClose">閉じる</button></div>
+ <div id="pvbody"></div>
+</div>
+<div id="gd" hidden>
+ <div class="panel" role="dialog" aria-modal="true" aria-labelledby="gdh">
+  <div class="ph"><h2 id="gdh">保存先フォルダを選ぶ</h2><button id="gdClose">閉じる</button></div>
+  <div class="pair"><input id="gdq" placeholder="フォルダ名で検索（空欄で最近のフォルダ）"><button id="gdSearch" class="pri">検索</button></div>
+  <ul id="gdlist" class="gdl"></ul>
+  <div class="bk"><input id="gdnew" placeholder="新しいフォルダ名" style="flex:1 1 200px"><button id="gdMake">マイドライブに作って選ぶ</button></div>
+ </div>
+</div>
+<div id="imp" hidden>
+ <div class="panel" role="dialog" aria-modal="true" aria-labelledby="imph">
+  <div class="ph"><h2 id="imph">Excelから読み込む</h2><button id="impClose">閉じる</button></div>
+  <div id="impBody"></div>
+  <div class="xbtns" id="impBtns"></div>
+ </div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+{
+const CUR=['JPY','USD','EUR','KRW','CNY'];
+const DEC={JPY:0,KRW:0,USD:2,EUR:2,CNY:2};
+const SYM={JPY:'¥',USD:'$',EUR:'€',KRW:'₩',CNY:'CN¥'};
+const XF={JPY:'"¥"#,##0',USD:'"$"#,##0.00',EUR:'"€"#,##0.00',KRW:'"₩"#,##0',CNY:'"CN¥"#,##0.00'};
+/* 組み込みの初期値：三菱UFJ銀行 公表相場 2026/11/18（1単位あたりの円。KRWは1ウォンあたり＝銀行表示の100ウォンあたりを100で割った値） */
+const REF={date:'2026-11-18',v:{USD:{tts:160.63,ttb:158.63},EUR:{tts:176.84,ttb:173.84},KRW:{tts:0.1220,ttb:0.1180},CNY:{tts:24.23,ttb:23.63}}};
+const UNIT=c=>c==='KRW'?100:1;
+/* 勘定科目（みずほ銀行「勘定科目とは」の費用科目より、見積で使うもの） */
+const ACC=[['売上原価',['仕入高','外注費']],['販売費および一般管理費',['給料','荷造運賃','広告宣伝費','水道光熱費','支払手数料','地代家賃','消耗品費','交際費','会議費','新聞図書費','通信費','車両費','旅費交通費','租税公課','減価償却費']]];
+const STD=ACC.flatMap(a=>a[1]);
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
+const $=s=>document.querySelector(s);
+const uid=()=>Math.random().toString(36).slice(2,10);
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rnd=(x,d)=>{const m=10**d;return Math.round((x+Math.sign(x)*Number.EPSILON)*m)/m};
+const tm=t=>{if(!t)return'';const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+
+const DEF_ISSUER={company:'A&L Project株式会社',dept:'よろず屋事業部/コンサルタント事業部',zip:'〒103-0007',addr:'東京都中央区日本橋浜町2-33-6 1F',person:'國府島 誠'};
+let settings=LS.get('mq.settings',null)||{threshold:20,issuer:{...DEF_ISSUER}};
+if(!settings.issuerEn)settings.issuerEn={company:'',dept:'',addr:'',person:''};
+if(!settings.buffer)settings.buffer={USD:3,EUR:3,CNY:0.5,KRW:0.002};
+if(!Array.isArray(settings.accounts))settings.accounts=['運営制作費','ラウンジ費','美術費','キャスティング費'];
+let rates=LS.get('mq.rates2',null)||{v:JSON.parse(JSON.stringify(REF.v)),manual:{},auto:null,date:REF.date,at:null,kind:'ref'};
+rates.ok=false;rates.loading=true;
+let quotes=LS.get('mq.quotes',null);
+let curId=LS.get('mq.cur',null);
+let undoSnap=null,hosted=false;
+
+const R=(item,desc,days,qty,price,pc,cost,cc)=>({id:uid(),item,desc,days,qty,price,pc,cost,cc});
+function sampleQuote(){return{id:uid(),title:'（サンプル）イベント運営',client:'株式会社サンプル',honor:'御中',attn:'',date:today(),sub:'JPY',lang:'ja',tax:10,mgmt:15,discType:'amt',disc:114750,markup:20,memo:'概算見積です。\n詳細決定後再見積もりいたします。',updated:Date.now(),cats:[
+ {id:uid(),name:'運営制作費',rows:[R('運営費','運営マニュアル費',1,1,150000,'JPY',0,'JPY'),R('','運営ディレクター',4,1,50000,'JPY',40000,'JPY'),R('','運営AD',4,1,35000,'JPY',30000,'JPY'),R('','運営スタッフ',4,7,25000,'JPY',23000,'JPY'),R('制作費','誘導サイン',1,1,100000,'JPY',10000,'JPY'),R('','運営備品',1,1,100000,'JPY',50000,'JPY'),R('','車両代',4,2,30000,'JPY',30000,'JPY')]},
+ {id:uid(),name:'ラウンジ費',rows:[R('進行台本費','打合せ含む',1,1,150000,'JPY',0,'JPY'),R('人件費','進行AD',1,2,30000,'JPY',25000,'JPY'),R('','音響オペレーター（現地）',1,1,50000,'JPY',280,'EUR'),R('機材費','持ち込み機材費',1,1,100000,'JPY',0,'JPY')]},
+ {id:uid(),name:'美術費',rows:[R('','',1,1,'','JPY','','JPY')]},
+ {id:uid(),name:'キャスティング費',rows:[R('','',1,1,'','JPY','','JPY')]}]}}
+function blankQuote(){return{id:uid(),title:'',client:'',honor:'御中',attn:'',date:today(),sub:'JPY',lang:'ja',tax:10,mgmt:15,discType:'amt',disc:0,markup:20,memo:'',updated:Date.now(),
+ cats:['運営制作費','ラウンジ費','美術費','キャスティング費'].map(n=>({id:uid(),name:n,rows:[R('','',1,1,'','JPY','','JPY')]}))}}
+if(!Array.isArray(quotes)||!quotes.length)quotes=[sampleQuote()];
+if(!quotes.find(x=>x.id===curId))curId=quotes[0].id;
+const Q=()=>quotes.find(x=>x.id===curId);
+
+/* 売値はTTB、原価はTTSで円にし、提出通貨へはTTBで戻す（提出通貨で受け取った額を円にするレート） */
+/* 計算レート＝三菱UFJの仲値（TTM）＋通貨ごとの上乗せ。売値・原価とも同じレート */
+const ttm=c=>{if(c==='JPY')return 1;const v=rates.v[c]||{};return ((+v.tts||0)+(+v.ttb||0))/2};
+const rStd=c=>c==='JPY'?1:+(ttm(c)+(+settings.buffer[c]||0)).toFixed(6);
+function cvR(R,v,f,t){const a=+v||0;if(!a)return 0;const rt=R(t);if(!rt)return 0;return rnd(a*R(f)/rt,DEC[t])}
+const conv=(v,f,t)=>cvR(rStd,v,f,t);
+const fmtN=x=>(+x).toLocaleString('ja-JP',{maximumFractionDigits:4});
+const rateTxt=(c,v)=>`${SYM[c]}${UNIT(c)} = ${fmtN(+(v*UNIT(c)).toFixed(4))}円`;
+function fmt(v,c){const n=+v||0;return (n<0?'−':'')+SYM[c]+Math.abs(n).toLocaleString('ja-JP',{minimumFractionDigits:DEC[c],maximumFractionDigits:DEC[c]})}
+const paren=s=>{s=String(s||'').trim();return !s?'':/^[（(].*[）)]$/.test(s)?s:'（'+s+'）'};
+const pct=m=>m==null?'—':(m*100).toFixed(1)+'%';
+const stat=m=>m==null?'na':(m*100<+settings.threshold?'bad':'ok');
+
+function calc(q,R=rStd){const S=q.sub,d=DEC[S];let cs=0,cc=0;
+ const cats=q.cats.map(c=>{let a=0,k=0;const rows=c.rows.map(r=>{const p=cvR(R,r.price,r.pc,S),co=cvR(R,r.cost,r.cc,S),n=(+r.days||0)*(+r.qty||0),amt=rnd(p*n,d),ct=rnd(co*n,d);a+=amt;k+=ct;return{p,co,amt,ct,m:amt?(amt-ct)/amt:null}});
+  a=rnd(a,d);k=rnd(k,d);cs+=a;cc+=k;return{amt:a,cost:k,m:a?(a-k)/a:null,rows}});
+ cs=rnd(cs,d);cc=rnd(cc,d);const mg=rnd(cs*(+q.mgmt||0)/100,d);
+ const disc=q.discType==='pct'?rnd((cs+mg)*(+q.disc||0)/100,d):rnd(+q.disc||0,d);
+ const sub=rnd(cs+mg-disc,d),pr=rnd(sub-cc,d),tax=rnd(sub*(+q.tax||0)/100,d);
+ return{cats,cs,cc,mg,disc,sub,pr,m:sub?pr/sub:null,tax,total:rnd(sub+tax,d),prJ:Math.round(pr*R(S))}}
+function targetVal(r,q){if(!(+r.cost))return null;const c=conv(r.cost,r.cc,r.pc);return rnd(c*(1+(+q.markup||0)/100),DEC[r.pc])}
+
+/* ---------- 描画 ---------- */
+const curOpts=v=>CUR.map(c=>`<option${c===v?' selected':''}>${c}</option>`).join('');
+function rowH(r,ci,ri){const n=(f,v)=>`<input data-rf="${f}" type="number" inputmode="decimal" step="any" value="${esc(v)}">`;
+ return `<div class="row" data-ri="${ri}">
+<label class="c-item"><span class="ml">項目</span><input data-rf="item" value="${esc(r.item)}" aria-label="項目"></label>
+<label class="c-desc"><span class="ml">内容（改行できます）</span><textarea class="ta" data-rf="desc" rows="1" aria-label="内容">${esc(r.desc)}</textarea></label>
+<label class="c-days"><span class="ml">日数</span>${n('days',r.days)}</label>
+<label class="c-qty"><span class="ml">数量</span>${n('qty',r.qty)}</label>
+<div class="c-price"><span class="ml">単価（売値）</span><div class="mon">${n('price',r.price)}<select data-rf="pc" aria-label="単価の通貨">${curOpts(r.pc)}</select></div></div>
+<div class="c-cost"><span class="ml">原価</span><div class="mon">${n('cost',r.cost)}<select data-rf="cc" aria-label="原価の通貨">${curOpts(r.cc)}</select></div><button class="tg" data-act="target" data-o="t${ci}_${ri}" hidden></button></div>
+<div class="c-amt"><span class="ml">金額（提出通貨）</span><b class="num" data-o="a${ci}_${ri}"></b><small class="num" data-o="u${ci}_${ri}"></small></div>
+<div class="c-m"><span class="ml">利益率</span><span class="chip" data-o="m${ci}_${ri}"></span></div>
+<button class="ib c-del" data-act="delrow" title="行を削除" aria-label="行を削除">×</button></div>`}
+function renderCats(){const q=Q();$('#cats').innerHTML=q.cats.map((c,ci)=>`<section class="cat" data-ci="${ci}">
+<div class="cath"><div class="cname"><input class="catname" data-cf="name" value="${esc(c.name)}" aria-label="カテゴリ名（自由入力）"><select class="accsel" aria-label="勘定科目から選ぶ">${accOpts()}</select></div><label class="ck dtl" title="2ページ目以降にこのカテゴリの詳細見積を作る"><input type="checkbox" data-cf="detail"${c.detail!==false?' checked':''}> 詳細ページ</label><span class="chip" data-o="cm${ci}"></span><span class="catamt num" data-o="ca${ci}"></span>
+<div class="catbtn"><button class="ib" data-act="up" title="上へ移動" aria-label="上へ移動"${ci?'':' disabled'}>↑</button><button class="ib" data-act="delcat" title="カテゴリを削除" aria-label="カテゴリを削除">×</button></div>
+<input class="catnote" data-cf="note" value="${esc(c.note)}" placeholder="補足（任意）例：但し破損等の保証は別途費用が必須／人件費込み" aria-label="カテゴリの補足"></div>
+<div class="rows"><div class="rh"><span>項目</span><span>内容</span><span>日数</span><span>数量</span><span>単価（売値）</span><span>原価</span><span>金額</span><span>利益率</span><span></span></div>
+${c.rows.map((r,ri)=>rowH(r,ci,ri)).join('')}</div>
+<button class="add" data-act="addrow">＋ 行を追加</button></section>`).join('')||'<p class="hint">カテゴリがありません。下のボタンで追加してください。</p>'}
+function accOpts(){return `<option value="">科目から選ぶ</option>`+(settings.accounts.length?`<optgroup label="登録した科目">${settings.accounts.map(a=>`<option>${esc(a)}</option>`).join('')}</optgroup>`:'')+ACC.map(([g,l])=>`<optgroup label="${g}">${l.map(a=>`<option>${a}</option>`).join('')}</optgroup>`).join('')}
+function refreshAcc(){document.querySelectorAll('.accsel').forEach(e=>e.innerHTML=accOpts());$('#accList').innerHTML=settings.accounts.length?settings.accounts.map((a,i)=>`<span class="tag">${esc(a)}<button data-act="accdel" data-i="${i}" aria-label="${esc(a)}を削除">×</button></span>`).join(''):'<span class="hint">まだありません。カテゴリ名に新しい科目を入力すると、ここに自動で登録されます。</span>'}
+function remember(n){n=String(n||'').trim();if(!n||STD.includes(n)||settings.accounts.includes(n))return;settings.accounts.push(n);LS.set('mq.settings',settings);refreshAcc();toast(`「${n}」を科目に登録しました`)}
+function fillInfo(){const q=Q();$('#subSel').innerHTML=curOpts(q.sub);document.querySelectorAll('[data-f]').forEach(e=>{e.value=q[e.dataset.f]??(e.dataset.f==='honor'?'御中':'')})}
+function fillSettings(){document.querySelectorAll('[data-is]').forEach(e=>{e.value=settings.issuer[e.dataset.is]??''});document.querySelectorAll('[data-ie]').forEach(e=>{e.value=settings.issuerEn[e.dataset.ie]??''});$('#thIn').value=settings.threshold}
+function renderRates(){$('#rgrid').innerHTML=`<div class="rr rrh"><span>通貨</span><span>仲値（TTM）</span><span>上乗せ（円）</span><span>計算レート</span></div>`+CUR.slice(1).map(c=>{const u=UNIT(c),v=rates.v[c]||{};return `<div class="rr"><b>${u>1?u+' ':''}${c}</b><span class="num">${fmtN(+(ttm(c)*u).toFixed(4))}<small>TTS ${fmtN(+(v.tts*u).toFixed(4))}／TTB ${fmtN(+(v.ttb*u).toFixed(4))}</small></span><input data-buf="${c}" type="number" inputmode="decimal" step="any" value="${+((settings.buffer[c]||0)*u).toFixed(4)}" aria-label="${c}の上乗せ（円）"><b class="num rate" data-o="rr_${c}"></b></div>`}).join('');
+ const s=$('#rstat');
+ if(rates.loading){s.dataset.s='';s.textContent='最新レートを取得中…'}
+ else if(rates.ok){s.dataset.s='';s.textContent=`三菱UFJ銀行 公表相場・${rates.date}（${tm(rates.at)} に確認）`+(rates.stale&&rates.stale.length?`。${rates.stale.join('・')}は当日の公表がないため前回の値`:'')}
+ else{s.dataset.s='bad';s.textContent=(navigator.onLine===false?'オフラインのため、':'')+'最新の三菱UFJレートを読み込めませんでした。'+(rates.kind==='mufg'?`${rates.date} の三菱UFJレートで計算しています。`:`組み込みの三菱UFJレート（${rates.date}）で計算しています。`)+(hosted?'':'（自動更新はGitHubで公開したアプリ版で動きます）')}}
+function setO(k,t,s){const e=document.querySelector(`[data-o="${k}"]`);if(!e)return;e.textContent=t;if(s!==undefined)e.dataset.s=s}
+
+function refresh(){const q=Q(),k=calc(q),S=q.sub,th=+settings.threshold;
+ CUR.slice(1).forEach(c=>setO('rr_'+c,rateTxt(c,rStd(c))));
+ const st=stat(k.m);$('#hero').dataset.s=st;$('#mpct').textContent=pct(k.m);
+ $('#thl').textContent=`警告ライン ${th}%`;
+ $('#mfill').style.width=Math.max(0,Math.min(k.m??0,0.5))/0.5*100+'%';$('#mth').style.left=Math.min(th,50)/50*100+'%';
+ $('#lstate').textContent=st==='bad'?`警告ラインを ${(th-k.m*100).toFixed(1)}ポイント下回っています`:st==='ok'?`警告ラインより ${(k.m*100-th).toFixed(1)}ポイント上です`:'金額を入力すると計算します';
+ $('#fTotal').textContent=fmt(k.total,S);$('#fSub').textContent=fmt(k.sub,S);$('#fCost').textContent=fmt(k.cc,S);
+ $('#fPr').textContent=fmt(k.pr,S);$('#fPrJ').textContent=fmt(k.prJ,'JPY');$('#fMg').textContent=fmt(k.mg,S);$('#fDisc').textContent=k.disc?fmt(-k.disc,S):fmt(0,S);$('#fTax').textContent=fmt(k.tax,S);
+ $('#fnote').textContent=(S==='JPY'?'':`提出通貨 ${S}・円換算は ${rateTxt(S,rStd(S))}。`)+(rates.ok?'':'※為替レートが最新ではありません');
+ $('#toPrev').textContent='宛先の表示：'+toLines(q).join(' ／ ')+(q.lang==='en'?'（英語の見積では敬称の代わりに To: / Attn: を使います）':'');
+ {const hs=$('#honorSel');if(hs){hs.disabled=q.lang==='en';if(document.activeElement!==hs)hs.value=q.honor??'御中'}}
+ $('#curNote').textContent=`金額は提出通貨（${S}）に換算して表示`;
+ $('#discHint').textContent=q.discType==='pct'?'値引き％は「カテゴリ合計＋管理費」に対してかかります。':`値引き金額は提出通貨（${S}）で入力します。`;
+ const bad=[];if(st==='bad')bad.push(`見積全体 ${pct(k.m)}`);
+ q.cats.forEach((c,ci)=>{const kc=k.cats[ci];setO('cm'+ci,'粗利 '+pct(kc.m),'na');setO('ca'+ci,`${fmt(kc.amt,S)}　原価 ${fmt(kc.cost,S)}`);
+  c.rows.forEach((r,ri)=>{const x=kc.rows[ri],rs=(x.amt||x.ct)?(x.amt-x.ct<0?'bad':'ok'):'na';setO(`a${ci}_${ri}`,fmt(x.amt,S));setO(`u${ci}_${ri}`,r.pc!==S&&+r.price?`単価 ${fmt(x.p,S)}`:'');setO(`m${ci}_${ri}`,rs==='na'?'—':(x.amt?pct(x.m):'売値なし'),rs==='bad'?'bad':'na');
+   const el=document.querySelector(`.cat[data-ci="${ci}"] .row[data-ri="${ri}"]`);if(el)el.dataset.s=rs;
+   if(rs==='bad')bad.push(`${c.name} › ${r.desc||r.item||'（無名の行）'} 赤字 ${fmt(x.amt-x.ct,S)}`);
+   const t=targetVal(r,q),tb=document.querySelector(`[data-o="t${ci}_${ri}"]`);if(tb){tb.hidden=t==null;if(t!=null){tb.textContent=`目標 ${fmt(t,r.pc)} → 単価へ`;tb.title=`原価＋${+q.markup||0}% を単価に入れます`}}})});
+ $('#alerts').innerHTML=bad.length?`<b>確認が必要な箇所があります（全体は粗利率${th}%未満、明細は赤字の行）</b><ul>${bad.slice(0,12).map(x=>`<li>${esc(x)}</li>`).join('')}${bad.length>12?`<li>ほか ${bad.length-12} 件</li>`:''}</ul>`:'';
+}
+const fitTA=el=>{el.style.height='auto';el.style.height=Math.max(44,el.scrollHeight+2)+'px'};
+const fitAll=()=>document.querySelectorAll('.ta').forEach(fitTA);
+function renderAll(){fillInfo();fillSettings();renderRates();renderCats();refreshAcc();refresh();setTimeout(fitAll,0)}
+
+/* ---------- 保存 ---------- */
+function persist(){const ok=LS.set('mq.quotes',quotes)&&LS.set('mq.cur',curId);$('#saved').textContent=ok?`保存済み ${tm(Date.now())}`:'この環境では保存できません'}
+function commit(struct){Q().updated=Date.now();persist();if(struct){renderCats();fitAll()}refresh()}
+let tt;function toast(msg,undo){const t=$('#toast');t.innerHTML=`<span>${esc(msg)}</span>${undo?'<button data-act="undo">元に戻す</button>':''}`;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),undo?6000:3000)}
+function snap(){undoSnap={id:curId,json:JSON.stringify(Q())}}
+
+/* ---------- 為替 ---------- */
+async function getJSON(u){const ac=new AbortController(),t=setTimeout(()=>ac.abort(),7000);try{const r=await fetch(u,{signal:ac.signal});if(!r.ok)throw new Error(r.status);return await r.json()}finally{clearTimeout(t)}}
+async function fetchRates(){rates.loading=true;renderRates();let got=false;
+ try{const j=await getJSON('rates.json?t='+Date.now()),r=j&&j.rates;
+  if(r&&CUR.slice(1).every(c=>r[c]&&+r[c].tts>0&&+r[c].ttb>0)){const v={};CUR.slice(1).forEach(c=>v[c]={tts:+r[c].tts,ttb:+r[c].ttb});
+   rates.v=v;Object.assign(rates,{date:j.date||'',at:Date.now(),kind:'mufg',stale:Array.isArray(j.stale)?j.stale:[]});got=true}}catch(e){}
+ rates.loading=false;rates.ok=got;LS.set('mq.rates2',{v:rates.v,date:rates.date,at:rates.at,kind:rates.kind,stale:rates.stale});renderRates();refresh()}
+
+/* ---------- Excel ---------- */
+/* 宛先表記：日本語は「御中／様／なし」。担当者名があれば「会社名（改行）担当者名 様」（御中と様は重ねない）。英語は To: ／ Attn: */
+function toLines(q){const c=String(q.client||'').trim(),a=String(q.attn||'').trim(),h=q.honor??'御中';
+ if(q.lang==='en')return c?['To: '+c].concat(a?['Attn: '+a]:[]):(a?['To: '+a]:['To: ']);
+ if(a)return (c?[c]:[]).concat([a+' 様']);
+ return [c+(c&&h?' '+h:'')]}
+const MONTH=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const dateTxt=q=>{const m=String(q.date||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(q.lang==='en'&&m)return `${MONTH[+m[2]-1]} ${+m[3]}, ${m[1]}`;return jpDate(q.date)};
+/* 英語の見積では英語の自社情報を使う（空欄の項目は日本語のまま） */
+function issuerFor(q){const is=settings.issuer,e=settings.issuerEn||{};if(q.lang!=='en')return [is.company,is.dept,is.zip,is.addr,is.person];
+ return [e.company||is.company,e.dept||is.dept,e.addr?'':is.zip,e.addr||is.addr,e.person||is.person]}
+const TX={ja:{q:'見積書',to:c=>(c||'')+' 御中',g1:'下記の通りお見積申しあげます。',g2:'ご検討の程お願い申しあげます。',proj:'案件名：',person:'担当者：',see:n=>`詳細は${n}P`,mg:'管理費',disc:'出精お値引き',tot:'トータル',cost:'原価',costT:'原価合計',pr:'利益',m:'利益率',tg:'目標売値',rt:'為替レート',prj:'粗利（円換算）'},
+ en:{q:'QUOTATION',to:c=>'To: '+(c||''),g1:'We are pleased to submit our quotation as follows.',g2:'Thank you for your consideration.',proj:'Project: ',person:'Contact: ',see:n=>`See p.${n}`,mg:'Management fee',disc:'Special discount',tot:'Summary',cost:'Cost',costT:'Total cost',pr:'Profit',m:'Margin',tg:'Target price',rt:'Exchange rates',prj:'Profit (JPY)'}};
+function loadXL(){return window.ExcelJS?Promise.resolve():new Promise((ok,ng)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';s.onload=ok;s.onerror=()=>ng(new Error('ExcelJS'));document.head.appendChild(s)})}
+/* 見積書デザイン（Pixelity見積フォーマット準拠） */
+const XFONT='A-OTF 新ゴ Pro M',PURPLE='FF5A3778',GRAY='FFF2F2F2';
+const IMG_EST='data:image/png;base64,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';
+const IMG_LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMcAAACvCAYAAABJosrxAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAIdUAACHVAQSctJ0AADoPSURBVHhe7Z0JWFzV2fjn02o1BggzA8MMAwyEZQY1AkkgEDUaIFED0VaTaFtrl69ptVUTliws4bM1YYkahqSBaGu0i/0kQPxcWNQaDVltIttAFv+tW4AoRLO4Va3zf95Dzs2Zd+69c+/MnWFYfs9znrucc889JO9vzrm7SuWn2FSqqX0hYXa8fpJJJiy9mtBWkIKm41OnhuAynnJ2MEEx6c4Mxr6J100yieL0aXVfsWLQhMt5ipAcZ07EtUCepDQQewfZxgM5zg7GrsLrJpmEFyyF9+SI34jXsZzrj3vISQYmsWVPD8RVs3mnB2KPnD0Zv/nMQPzfIB+mpwcT9rBlzvQn/P3MkCmBq2Mw/g2y7fvTY9m6J5mE0HnFFaFYCpp61doHcXlvc+aDuEVYCiyGp5w+EXcn1HlucPoyWKb7+ORE7E9x2UkmIWA5vNF7SAGLYbfrp+AySkHFOz0Yv/vC/lQX43KTTFCoBL3a0BJ/kONc//TfeavX4IPu4+xAwi/pPs8MxG7G5SaZYBy+bFoUSHBEqy2GZSxHjybEhrfxBb6UA+B6kBPxH17Yt/sH/ZOMA0CA7mmhM2gvgeUYrd7D13IAXA/C7Pvzk9PTcblJJgisFDA9OGVK2ESVAzg7GH94ZDo6+5/ET+hTa1f0anVfw7xtWugPe7WhJ8h6JIdNq/sP3tbbjHZwsvsfrTZMMorgXoHrRbS6r7EgbDlfMNqBaX9Hddlot2GSUQQHPSyXqVQX0XmH3iMwxKcXyvwhMB17j7gWnD/JOKVXE3KwVxvyGrsOxLBpdd/CPJYDi+Rt/E+O0WvHJD5GKNjp+h61tnzCy9Ef96k/tGMSHyMU7L2akN4edcjtMI/l6NPqduLy3sIfgvLcyYQf+EM7JvEhNnXIF33qkAV4PYWK4ySHgFDewB+C8osPY6f7Qzsm8SGugpzmH1GpAiayHHw9R9TjNXZXSawc3sckfsTBgACNqyDv1YRm9gbrBmEey2HThH6Jy3sDHJRnB+PW4jLe5sxA3GHcjskAH8eQAFepLsXrMVSgHk3oEBYEl/UGOChHQw62DVLlwD0FThGP17yDt/GEoZ3Jp4Z2Jn9zqinpZpjKSbANrm9CIzW42XJYjr6AAI1jaeXBQXm6P+YuXMbb8MkhhH5b2RQqTkSt9RSWAlLA5g1e/3eTw6mm5PV43YSlLzj0FzaNVvIvFxXESQ6JgnkCDsqzA7H34jLehm3Dp4OxP8P5lMjaTd+M9ArWzVQQLAZd7y72nddMO7Vzpl1KGm5KtuDt+fi4MWkbXscy3JByCNeNE95mzCI3qGn5Xk3IvaMuh4+HVWf64+pxG1wRua36IEzDrNYQ/bZHzEqJwXL6xatjcIAqEayDbborhhuTfjzUkNRN6zr9XPIsmj/UmPIt3pen+/Qr5Aa1TR162KbRzId5LEdfcMjDuLyS4MAEOaQGqRKw+5ezX2Od9QW+3gOX84RPdl5jwgHqrSAdbkp+ja17qCnl377Yr1fpU4f8ximg3UxQH9xWwrfeW+DA9KUcZz6IXYH3LxUQIbKumtyC4y05ABygwztmCA77lOCjpqSbqQj2etXF7L6HGpP+iMv7NTh48bI7TBQ52H2fHph+BOeLASJEPF79FZ1n5YjasiUMl3eXT/5vRvRo/HrD8IrOj8b+FQEHL152ByxHnzb037iMUoyWHKf747/F+5YDkaPOSv5dvCkHMFrBye5vNPbvEb0a3d5eTSh3i7VNq/umL1j7C8dS8unVhn6ABcFllAIHqC/kOHdy5D1W7ooBTAQ5gOHGpH/aVar/gvnRaoNb4KDFy56A5TiuUn0Xl1ECHKTeluPsQHwZ3qc7RNZVfzMR5ACGG5I76PxotUE2rAzH1WGJ3pRDybpZcKB6U47TA7E76b7ODcYvxfly8cUxBzDacgCnmlLIo9W2ssRLR7MdkrBpQj+3aUJ/SJcheA+qlLui3asOLR4tOT45Mb2cL31+YnoE3l4qdB9nzr9YQQkiH68hz9xjOZTGH+QAhpqSvyHTHdfcgPP8ChyseFkJsBy9QaG34TKe4izHhWWxhOsR4nR/bBeUH+xUXYHzlALLMR57Dgptw3BzbCDO8wtsKpWalaE3OGQXfexVSbAc3hDQnYD3KWWqi1wlVg79I/O0kXWP6XEZl0kELEd0TZbdaXuxpDDsaV6/A4L0UHBwELvsWEIZbFNCvP5uKyzH6YH42TR9ecIQzy7jbSlsmQ/fiVLsVzuqJou8zijKOr+HL8FFQDKP5BDqOfD2oql6/q/odrxywLDOmnnAaTuHdMPL7P6V4tA21SUfNyRfj9f7BThI8bKSYDl61TruzIUSYDncubfKuY4E+2cnY7ngcheTNfNzmEIw8iW+K+S4DE1Mtf+F89gUvC2L+9GjsHLw1Ed6N1wPbzkFObUz5RheN+ocmabL7VOHfEaXRwI2RPSuS0/AcigtonNgj5ytwuv5yp8ZjHsX1g0O6q7g1p+I/dep/pi57DZuYR85tw+9Bw64KOv8GyHPkwNyXKdYIOOeY7gp5fipnSm897xJrVMJ/OEYyAEcnHjZG2A56EUhJcASyDmVe7Y/bi83j+o5dzJ2hUNhmdDAEgs2JeWIst74Ai5DkSMHYKrO/IKrt2b+cZyP4epvTD6A88YUrAxHpoVePRpyKLlPHNRy5ABOnozWwfT0idgnaD2fvW8MP9MfK/l5Fj4irTe2aiozAmiQmWoym5zKeCCHwZqZLCQdRq4cQJR1/vtS6mYZ03L0aXV/6dWEtnPL8Ob0qRqzYynlOSLj3VbbN6z69umKwi+kp9X2P1cVkATLT1UWfE3nxdIfywuyYH+n++O59/ti0eznh0ZPlRd+hrcXSxHVWdfCdjS49BVzIy/8hRfwRA7Am3IAUdU3fuOqbpaxLccoDKkoWA7bVHUiLuMOIIdTzzEQ69YXbrEcFJCDXXYFDSiYGquvFzxL5u9yAFB3lDVzCK/nY9zIYVPryCeTHUt4DywH376fKi8kwQIBL5Se3FB4C7sNrLO1Z5O0vXz1T/Y8//16mNL8JysLr8N14MTKQOXo2p39BSxDXU9tWOXwJpUny1f9ANdBEy0TtenGu6I2zRf98OdYkANwVT9lzMrRq9Wd6FWHch+2hOCkL4P2BbbAQHLhUUyO7RWFb28vu+cyHHDng473IB7/2gudysX1kbRh9VlcDtcnxh/LC76H67z20cX7IM9UnenyQpfSckRvyuSV0VM5DNU3ZOJ1fIxZOXAw4mVfgOXoUYeW07z6itXk/DwOtqfKV4t+qRYH89ARTQAuA2xfX/ABrhuXOdsfe+6jdyP1tL4z/XEP4DJ8uKpXiLEiB2CyZn6C11GGm2Z8H6ZjUg7oIVgZSGBqQnz+h9i0utNYEJpHg0pukGE5xEDSVeL8M/1xz8JUTp2Up8pXnZTTbmAsyUFhh1i0Pm46FuWAIDx02WXcGZPR6DUoQnJsX1+weXtVQZLcABML5P6Z+inHUuLS6LIU8T59V6s/OxB7VKhOMZ6sKByp//yZMFcoLUdUddbvcBlASTkirJkvwRRuARluSHkd5se8HHT+SEBAgj/J0acJee/J8vxcyHMVuHywchxLs3x1fM6Vdkjd10YGQ/6xtETuyUZWjqOpiW/RssdSLeQeKBZaJzwOi/OEMFnnfyrnb1BaDl/0HIBx07zb2F5jzMoBp0zh82R0GQKyU63jfk19TZ86bCUWhOZJDSoWGuBCv/JCcjiWUqkOzdRPIaKkJZKAFeuRXMFXPx+jKcfwzpQPhxqTu3HC22KGmpLee+YvcxzEGLNy4F4CL48GWI6n1xfOe6p89UpcTgo0gPsfMbv8u1g5QISnN6wiL8EGjs62cG9KPDbLkkWFI73HwPTdXCUikCBdPvOSxyvuN/65stDlGZ7RkyNp4FTTzCVCyWHbpmsKT+1MPgjbwovcYF1U9fy/s3WOCzlsGt0mf5QD0p8q8jJwOSmwQYzzMLjnIMOr2eY8qIOWOZZm+WTXPNV3YP6DIov9+PWJkurGSOk9RksOd4HXh2IpxqwcR4JD823a0KN0GQek3FSvUl3MLjvuTTo2TWg+rhuXcQUE9Nsp5hQ5wx8+OWjekVkJGawkMH9uMH4Z1AvzQ+9FGGieHP64IV9wCDvW5BjambIPSzFm5XAn6HwBFgNS1zStpIdfjqVZbmGD2CM5NhQ24zLHUy1fvxMVdRmZn3Ol/Z8/GOk53s5KdFk/H3+oLOS97gKMlhxDO1P+faop+YiUhOsCPtyRtIlPDnr2akxA5fDGI7CeguWQIvLxNDM5G8Wu80gOgaHPsdkJ+UdTLXfDvKsDfik8tWEV723foyUHHJAPNSV/NdyY/BmkjxuSebdzBa53zPQcfVr4RLLuEbzeX6AXJqXKcTQt8VssBuANOYDOGTGhx1IthTBPBTl9Iv4jXE4KQvsZTTk8OZXL4lBv49VGnO+X4GDDgSg7MW9GdAdcH986mzr0RbwdQIMTLurhPG/JARxNjp9xPDXWSI87+OSUwvayB6fhdcB4kGOoMeVftN4xAw1AoDc4ZBUXkFrdVqnJptGRL/qw69h9uAvXFk1YPRYElz06O/ELEpizLV04D/CmHMCxNPMOmA6/4Z4gsI/t5at5g3a05BhqTNk7/FyyW6fO+RhTcsDHKvuCtCl0GYIOHk3Fgegq2bQ6cteqWPC6A1yU7A5Sk1ss8D7ZckdnJa5zFZDelgOAIR3pPTJG2iLWHnfwtRzQc+AyngDXTfA6vwUHGV3G60cTtk0OQqpDyXMUgKtAPDMY/4Ev5AD+3+KRs1a0TcdTE1/FZdzF13LYt4+cjZtw7Dv/3ARdPv/CttM9am0JexvJaEPb+I8pU/RYEFh/IQid73uisGJIEcQTOY6mmldC/YN/cG94JYav5ZiwQHDtUo1c4aXL7NRfsKl1W3vVWnIcgeU4lpr4Z1cBeO5kwkdYDG/KAZw5MbIPTlyR9slhLMsx3JiUjdf5DeVtCacqWhLO0QTBxbeM1wslXL83ocLyfSpNLPjO9Mc9hKWQIoinchxJTbgR6h9qM3Pte3u22ePvmWA5hN54iPEHOT6sT5TU1lGhss3C/cE90zS5Nq2uny7btLozveqQZ2yakI/gQzXcRgJUtCb04nXehO3N+ORwLD0CFkE4xb6Jt/VUDgDaBfUr2XuMZTmGG5OGhp5LELwLYFRh5WCDjS5DPp3ypfLWC6/U55Pj4WbznMrWBPKGPphuaJ0ei8sAG9tiQstbzB+WtRrVOE8Im0p1KW0zluNInEnx/0gl5DiWav4xTI+mmv8fleNYWoKkx2mFGA059gbdPP/AtMV2SPsCcl6DqeNWrtkflPsl1Dn03KyEwZ3XmHC+X8HKYT9/k6D9/JVoLAWkh1umc6d75bLh5bhbKtrMh2hdFS1x3JdC6TrHLfihbe7SaMhDWGzCZT1FCTlYlOo9RkMOjJgc+4Ny/0LnD065JQnK2lTzpsIyqbcxuXe4IeWQw0b+RK9G82SfJpQLUAgumzrkHhJo07Q5WAypwSuH8rb4H9F66fz5Zd43hwC9at1fezWhT8L8WJbjkEp1Cc6Xiq/lOBCY43Rb0YHAnLMXepJF7+9RZTgMlcj6wNwzdHl/4CLykuwxAQ4mukyn5S3mb70pBktlW9w75S3xt47Mnx++tSSQz17xwbU11FGOPk3Ip7isJyguR2rC/yrReyglh7FmfiouA1Ax/mFaJKuN+4JyvtoTkJNOl+GRBSqQWE8jl4+akt/7tDFFj9crBivHHpUqAMuxvi3mKlaODlvMya7e6XZfJiEpoY3HZps/hgDzZu+htByAP8kh1nNAMIsNq8SgIuwPym1l5dh1fmjlCR/XxwQNNabcZy9TXeRu+0Tp1er6bUGa+XQZgqozQBvvWOrCrziV49AhvRaXUZINL8Uvy2/TXVH5coKByiEmCJ8ccNCOy7qLt+VojnXvi7lUjIhtNWTY4q4cQlAxPAk+KsiBqQuvU7L3ONWYoujowAn8C4uXKXLkqK9XXdzVG/01/vWXkw4cjw2kMrBylLeaHV6vCVA5jl4V6yQILguUlaku6rSZSvF6MZSUg/YUrBxHU83v4XJSoHKE1z52B84TQ4ocrBieyAHsDcolD4cdvCwnXQk5PG2PosiRg6Wj11SOA18sbdvmeHBa3hL/MC5DE+TD1DZXbz96dRxv79HRa/p3Z2/MA4cO8R/0dnRHV0MdHT0xb+A8FkXlSL1yO0yPzrYc9nRoxQ6p5OBKDgjefUG5g0rJARxQ3UQ+dLkvcNFzpP6AHPJaJbnQL8t+3JRUgfNGBVYOnCcFHNh8CW/DAlfg+dpAH2SiCcvRHaxd+man8aqOnpj9eH/d3ZExtJ6uvuhn6frOnijyikoWJeUAepNNUW/Ptlzpj3Kwv+xKysHibu8x1JBCvn1y9tkkt96G7xX4AlMuODjZ1Nbm+nPEfG1wHJpYnod1WBCHShje6ok5OiJDNHeakW1TZ3d0FV2vtBy756eWk8DeZrX3pV/tlhzhtdUPKi3H/qCc28mveuCi52DZW3IAcuX4qOmaX9jrVRfDvDfa4zZ8gSmXt7qj38JS0ITL8sG2oaItnnz3gpUDfolhnVQ5KAdskYnQhv3doeRLTV29Ma24bUrLwZ5lgtSdMUN2fcbaTV+Rg/G6Gu4alVSE5MC/6N6UAzgYsOgPeB0fH+9Iue70s4nkDgpoy3BTyt9wGcXp1YScwuv4UEIOAEtBfqF7pi/D5fhg20DbwTcs6dXoTrJywG33DhUJQNrTE0O67cOHTVFsGzu64xSTA4tB07FUSwEuK4a7vQbAJwdcm/C1HAcCc4tguj8wtwfnUYYbZ/z44wZLFMx7sy1OSPllBXBQugsWg/4yS6Gy2dyJ28EnByC396B02KL/2dVjIsOsw4cjyGlkNnkiBQVLwcixB5cVA7aJ3GYVDCox+ORgxfD2MQdGaIg13JT0z2+bY8lpbl+1hWDThH4hNXBwULpLZ49pCAccLiPEhtb4ZbgdUuXoU4c4HWQL0dljOt7ZHT0M8129pkfcba8QWAqa8N8gBjxD7m6vAWA5DgQuPuEgR1DOQZh6OyDp/narbnI6wKb7/LgpaR7bjpPPjHyo1KvI+VXFQekunbYYp1OzuIwQHskh8e+kQLs6bVE30XmccHk5hNdZK7EYcuUgYpSVyf66lql6/scwdZKD3hsVmPsBLTu8M+Un3pYD7sPq+O5CclcuFWW4Kfmt4YaUWpg/1Zh0hm2Dt9rhgNygwUHpLp29kT93N9Aq2yyb2HYcT40NlCOHTaP9F1vGFWzbcJvltJsPLAak7rnXSKrzfI8heEOmGFE1mST4WTn2XrHoKrbX2B+QQ77EhINyeGcS9zVhJTkQlEseZ94XlPOfoaaZ5PgQvsaL90/a0JTi3YfqDqn0UzyVo7wloQSXkYKHcnBtcEcOSHADHFvOFbR99XX/7STH4e4o7sY6d4ios96LBYH1UbXW38K84fePROBtaBl3oT0FKwcVgz3eGG66phgHpjd/tWGfB6cuJq91xfv0xf45cMDY1KEu31Pqj3LAOj45+tQ68mivUHKoVCJwII7bLaftQtC2N+XOdxAE8FQEPqTI8d5DqTU4KH0RoEM7k7/B+8IJb6MoOFC4pA0VvdcIB6W7KCUHPDkI67ActqCQJKe/jSd1BwWRrzdJBeTYse3nTnJ09kRL+s62EGz7ce/HyhG+1fq/4bWPXsPmu4OoHOpb2ge3pToFJF/6sDGJPNXIMvxcUhZJDcm34zwhTu1MOYbrFkofP5/IfX5PUQ5frjHgAMGpV6v7Cm9HwXL4uudYUq+6lG3DkvNXStnAsmlDhvHfJJZsmhDJxyD0Ggduu9T2C8G2/1iamfsgDhC5rSbLuG3TbYY6q1v3IPGB5XhFn+s0pMLbyKX/rzMl3Xc36vRqQu62aXUn5KZejY68CJnCJ0d5Wxz3CKRU3JWD3T/bex29MtbeF2YgCf8NclJHUBDvO2kpYnJ0dkZci8tLxaHnSLvyGZyvNFgOPKRSQo5vnzVePvJFJ88SrtdvwYEJclS2JMi+zVoZOeI30/VCQxKlYK+IQ/rb5l85ySH1b+CDbX9fmtnr73FyJce+wFxJn2mbhGE05RDqNQA2uN6ePd2js0d8YDmEeg+8nVS8LTfGlRyTuAEOztGSgx5rUByGJakJos9kuMNEkmPvlJuScflJJDBacrD75TsJcDzVcsSbAeZNOY7Ojs/0Ztv5YOWY/VC2gxwHAnO9cpFv3DMacjiKEf8Uzqd4M8C8Kkfq+e+HeKntfLBybJ+xyFGOyaGVe/haDnZ/FS/HWXA+izcDTKocb3bGXIW3dQXb7mNpiR6/N1cK4dVZcTDFQ6r9QTl7J+VwEz45ylvNQ5WtlmU4lTXHkmeF+ZAix4XewizpY53jQQ6c5w1or2Gyzl+N5dgXmLtxUg434ZMDl5GCmBzlbTHzR6RIELwYycfxVLOV+QX26Io1RqoceDsp+FqOKGsm+bfhOxg/GJjzqwklR+QWmz2ipvc6sUTL4mWMkxyt5s/FUkWruXZDS4JToPLJUdkafxtMd+268G0QuXgr0Lwlx/G0xCHaXvrsuzehvUZUTdbXfHLsCcxZMOHkwOvcBcnh1u3SAJ8csH7CyaFwe03V878xVWcOmqyZf4uyzl8BU5M18xOQIKr6BvIoKpWCT4700pEzV7hejKk6U9JQd0xi2NynAWmkJFWZjXtjIO452GWp79KFvL+2x/MGlqdywBepuF/i2Ykv43x38aYc/b8Ns5+sCRFN/TUaM96Wj8iaG+bidUCEdX5upPXGAr7EynHzg9nleN9sPR9XB0fifC49Ou1qtuyYB4uAEy5305822Vc8d5u99KW5JM+dY46KtoTPhOTosEVX4/JyUfrXGMByNDzxU6f2y5XjaFrif2g7339UdblTsPEEpyuE5GAJr0qbwS47Dqtums5llCVeGlU93xq1KXMjmTLJkzaOKbAQfGJEWLuH6XpL7W576h92cHJAT/DbF2LiaGLrLm+xPEgT25sIyaEE3VdF62jQ2WbGKHJ789MVq0k9Yr1GV29MA95ODCzxRw9P0eOgG9yk3oa3k0P4xjltERvn2g1VGf82bEy/D9bBMluGlSPn3hvskG/cmLGJLcMHbaO9zP2e3u/BUrBywNRg7fmrYUtvJizjYROVA9fJRyXzoRshOWDqybCKggPPE2ivsX1D4VYxOfB2Ygi1b9Cq/YSVAz4cxOZLYUSGdO5z0xgxOeBsFV1vqJqTBWXDq9LJa4ow0L4Bq3rsfD/cHXTVnVc5iVG2i3xnGvcinsgBbGiJJ59F89YBOQvXeyRK/4wa5pGy5dqnyleTB3q4443KQicx3JYj1XIE57FyDJepBa8VucJQlf5rvA5jrJpzEytH+7ScHVzehjnc5+nCN2YMYqnG9XCKxUkOlUqlr7HdZazu+17k5h7uc1SeykHfjs4nx4bmePL6G5BDbrDxcTw1sZnv15mlbPnyKXgd8NSGwrtAhO1V94Vt2bAy1tWBeFdf1F24DiGEeg3KYLVmx4VhVfD/4HxXGCszZJ1JYuXYH5Dz7khvkfFvmm/cmM59xx3y9FUZv4f5QatmYtyDxSeHcUvPMZhG1HRyj0LyycFUI4mK52Mi+eSAPCXlAGgQHk1L3IfzADpk2lJ239Q/P7xCD1Oa91T56p2sFCNplbMY51/y9vRvVwvezfpUeSF5bek7iYlhYmJQ2N4D5wkBgRu6Pk32u5xYOSDR9fqq9P2Gqjk2mNdVpP00onIu+UyZpjIjAPci4xo+OdjhFEUJOWBbX8kBiAUjlUMquM2Q3uqJzMDlMFQOTtZZ8bNxGRY5cugr0x/2JFj3BeZU88lBYesmvUp56jX/rAgO8mSfYwo+OcI3dzsdbCkhB+BLOQBWkKOzLW6dAeqwRSXhNstp59HZI3ffHk21NOI8zDubgqZxQ6tqdR3Opxg3ZvzH0yDdf8V8nZgcgKFqzheq82elyAH/xgxJ7x0eF/DKUdN7My6H5XAXPjnKWxI6vCVHp053BQTmkdREchbnWKpZ9kvBcHvltPFomvk+2P+x2ZZdOE8IV70HBKmnYlBcyQEYqjJadRtnkE9EKLlvv4dPDinDKnfhkwPq9JYcFCJImuVpmD+WaiGvxJQCbquU9jWWZA82rcvqfG5t5jvNK2+0N5Zk98Kyq0S3H6jWfiMkh9LBKUUOwFCV0Q3TkKrZYUq3wW8Z73I0li54qalsoR2n46mWJ3BZTFfP9OO4rYcPh5FX4YsBcrwTFXUZCEnfsNhYknUEt4FNDaWZf2bruNB7aLmzRzQo9RvTH2DLeoJUOQB6NsxYmf7phBBkvMtBaShemIUDEgIYl6N09MY4vV3dZguR9HngjvlXb7DdIPwxGrYN9auzgnA+gIdW4VUZ73gjIFk5DgQs6sL5GDjWgSltC7QLlxk3TBQ5gIbS7LmOv9bZebAeD7M6uk2/xG1k88U4nmr5unNGTChe3xoeb2cT7L8l8sIyLj9QrX6CyvHKI4Z4b4gB7A/I/VhO7wEH58HFs8g7fLk2lc3kvWY05vEnOarazLIC0R1w73Es1bKX5h1LM/+7oyfa4cOah1+W1p630ywu70ligX3T+VZdbJNj7ghUDhqEhvI5/8BllECWHNCLVWaQh9EMlRlfKSnt/qCc/0htg0/gkyOixkbOzbP4Ug7XyUTexu0OTaXZT2BBaB7ezy5TfOkbMXGDhxLja1tCpy9+KSxmFlvXLpXqMtwjCKXmsNj17LaNRVlz6LyYHFdunMPJgfOVQq4chPtHvrZE26ZE++BR3TcDbnF57chn8MnBhzflKNuuugymIEdFSzwZ6niLnWXzyGs/n10553IqR3PNtd/QtsB3y2nZlvC4X8L07bQrH2LraDbEr4eAfyUirvXYbHN7c2hMJpaBTey2YujNBX83JKzk3r01sGmqhQZexiOzyIuzvYHDcYeAIB/WaBxepmGsTCd3URir5pxj5HD7Ibi9gbnkB1lo/6OCP8hB1ttw7yA94X24AoR4ruzaxOfLb/wXbA/7bizLdHhrOHz7o3eW5csjqYlfvmaKtx9NTbQfmZ1o/8dVZof9NRviyBmclw38grBlMQ3rsvvwuuCY5dwBOvurzHdaFwhPLLDr4x+41mDJ5z4XLZe9U3OXu5KDb//hlenPwlSJ3mN/YC65zWfvpQskPdzlE/xFjvLW2J8pUb8Umn9/nb2pLPtNmOcbXrkChlds4NN5HjFEf0n55FDF3v9dCHiDJf9bGnCmjRmCclBgG7xODqwc+wNuIb3EPtUdl3drV9sh9RgfJFM2RZfPJVMsBy7nKh2YdqustuPtxVKXppCcXXMLf5Bj376RW8vl7iNb9aMr7owqsUNaZiz+ks5LTVQIdwQBqBS7gqLIUO1F3fS/SO01AF45zmOoSP+c7TVo0sXlL6Jl9PF5/01ESsiDYL5IpbqfHAe4w76AnNO494DggulAtVb8bt/7Y7+LBZHDgcAcWU+B0nZ5HX+QA9Z39EX/5s3u6XaaOmwxJyF19poeoPM04TrlAhKAHDDfsC7r/WfXJoVQORrXZX+Dy4vREhZH7lhtMcTu2aZSXeJKDr05r57Oi8mBh1TsNY9ppvuiQAo2wXple4+cdzuDC9+uVy25FPaLf5G5X+Zpq34A20qVA28P+8Lr8DYYtkyPepUFb09T57RCp2dmZOEvcsAUrnPQfcD9Vux2SyNKWvAvP19aaiiWdEMklN30ox/Yf3Jl3sKmNZmaHesWDFNBGkqz1iyLXJWB6+ZL7JCKToXkMFgKiHiueir9I+lmGmjhlRlnTlarD1M57l70vUFD4sqfQjksh17P/4yKVPYF5Qzj3uNI2g+cgo4vgI2V6d/QNhsr05txPguto0uTb+/SFHB19gTneXSmCreRr52SMNZ0H4CpFDnWvxSb7Ws5hPaDg5NNuKwUGtZln20sXfg2zK+/7R773bFrSF1LIorIvw+wxFh8F94XTS2G6eTsUqs+jjz/ICRHmLmAPOwFCElBYX+F1WUjb4906D0S75tqMOeRK9NUDoMln4inMT2YgOuTAysHJNxr7FLdw3tXgaYywyC19wCgLrbX6AoudLoT3B06glc95LEcETU95IVrUuRgA5YEbZn855spruTotJle3P56vL32NbN991ux8w53x8zq7DM6vGoTB6i7YlCeXTOPeywU/6pD3XdEFpGvXN1uKHbqTR423vYnyGsxTCdDJD451HErw/WWPO7Zbjly0HV4aAXoEvLI6U8lh1YAK8fBkFzJgcbXbiHwcArne4pH0nkih9CvuhSkyFHzqll0PzlT87Q4SHEZdwFRsCDA+X2QH4VlkcXfCu2bTw4csKJyCBzcnqxRZ10QREuexwfCLCv2qlRLLoZ9hMTePz0sPp+8acQT9gXmfMUK8pb6QdEDctpOtt3GsjmCz+9DnT2BeQu9KQfgdt1S5cBS0LS+OZ68lYTFZqu/dG/bNjtJLbX7cT4gRY7fv5rwKt1PRUtCBa4DYIPzNv1qt7/Jx0djyYJzFw7QF9xP198Zvnr+0sgicqV7qXHt36XIEZqYt1iOHMbKOfv55AD4eg+t+dfxhoS8jDBz/vfxftyBDqPw8OrglFuScFkKnxy47ZT9QTlk+HcgcPHrXpcjuCDdrbqlyIGFwKmiOX4NW54T43xi8yhS5DjQGRntuB/zI7geoV9uKYgFJ4Wv9wDuUZVdtiyiiFwjWRpRtBG3AcvBDnkouE4WNrj0lRncG0EAVg47cw3FYM4nQzpDwspP2fJAyaKorpKcqFfI1EUqzo3+ufWHUXaY37Ag8SMsyIGg3P/F9QO6jTPIjZbhFSPvyuKT40DgTdy7eGF6KHh1kLflADrVhae6NKtknYEUlaO8JeFTLIJYqmhN2ELr3dda9xaVYwPPrSDuyEHT6ldiuKvH3pYDEBIEWBpR9AFMl0SutXlLDt36dIdjrV1lqu/w9R4sYea8MrwOKFkUHrfu1hi7UCpZFH0HyNGlLiTHRoPVI/U7CcJ3BX35zEvUZamBYRtTE9n2Hwi45W4ovzcgl9x+s3/qomfo9r6SA5Bdv5gc7kJ7C7Hew5UcHd2mZw72GTR4O4wv5Hi2JPNqKkdD6QLuNTWUJREl77eGxVUvi1z79ZLIYvIVVlaO4ODVQSCGzpx/gt1ObP9Cv7wUV3K4AksBCdYX32KKeuZXRnvDjO/ZS3Kjcw6s09tLcqJWliyOPtyucf4CFJYktHxWDF1vTV1oj6i60P6DATfHw/p9gblcz8YnB9sbKo1NdeHtMi7xhhx72rY9/caLv8/wRA5cXghfyAE0lmaf4QRZt/BunL8q4m5yxoi2g5XDkJj/U3Ka1Zzv8JSf2P5dyTFQrR6kcgxYg2/C+VJgxShLVF1KBfnwMQ15Gdzwo5eH420ALAeb9gfkPgTv20343bV2SAt/M88hv1OVTZ5Bp/hajq7gwhqYHpdyF4HScuxpqyMvgAMhDr6yWUPl2N9Sa2LLjTU5ALHhFfQcd4SvvQPmZ6qWO1wh15sL3hy5BlFQQMvvKpv3Hb56KK7kAJTsPei6/mptFQ1SV/XuC1zkcLFQLO1VZTs9+AXwyeELJO1LaTloL7G7tY5cvRXqPcaiHICQICDHkvBi8v0LsswnB9NzlJWpLsJ1UAyPzIrwtRxFi9Skl4C6ujUF5MLiQHXwIN5GCKijdFHMO22q7Csgwc2ItP3hVXMdTtiw8MnhzZ6D0qku4M4+CqK0HK+//Hvuo5Z7W7e2727d+tl4kqOxLPsqKkfjugXcZ9lADpiKDavYA/IdpQuvE9q/sSLtTily9FdrVnFDq2oNeSuIHEoXR58gQZ0b/XnprSbSq/1ryY1LYTq4adpjuLwYxYsi7iGi5ZjIk5Bs+yM2ZvwVl6eMlhxA57TCdXidA0rKgQWgy1SO9ratZLwHCMkhF1/LATStW/A5FaS+dMEKWEflAKAtDj1H/HKtLDk2zv2NFDkAT3oPVg5YPmnV2CBADwUvD3KnPtoL5WfrrnCQozJdUNzRlMPl0EpJOdpbah2uoO6qLyNnBviGVt6SIzd0rW6JfuRbGq4QCk4p4OEVKwfwsPF20VO54nJkFLojx6HlqktwvhhOcpwXAg5WB6tDyLBYLlQQf5cD9tURvMrhkWUnlJJj/6tP8L7AGITY01r3jK/kkNOLCAWnVFhBsBx14TfaXwi3OMmhj8/TwrKoHBKHVRR3ew8sR3+ZyqO7eQEqx4qlsX4thySUkgMPqSh7WreS+nHvMZpy0KAUCk4WXD9LU8mCHNyDPFs0PxWm7LAKlsMs+Z+zvYeYHGGVc+b5Wo6TmzTc3cKe4tx7+Ocxh0uUkmPfy49zr7bBHGh7PHqsykERqrNh3YJvqRz1pdn3NZZm7YT1WA5AqhzqiquNcuQYtKo/p3IMbNLci/OFYOVw+ZSfDKgcBbdPJ+03VKQJDtHGvRx7m7feidexgBD7Xqq7msqx57nKgPEiB4B7D5iKyQFJTA5AjhyAO70HleOh70VL3kYKpYujXmB7D0PlLMFnS8atHLtbtpKXiwkNqTBs7zGe5ACcBCnKJmL837J0h+2oHNdf9yvS47B5LGNZDoDKYapw/Psx41KO9tba39D53S/VVjnm8jOe5Xj+9ll/oHI0lC78mohx91z7S1c7fjQnLDY/kchx/b1OFxJZ5MoxsCn4uQuCSDt+wAfkSkLlgITzWMalHLS32NtSyz1GKgUqxz8O3Nk8nuSAs1UgBRXkhXnJpOcAOZpKsrkXxAFh5rwnqRzs6V0WVg59edpMnM+H3N7DW3LoK+ekjAs5KHLlaG+u/TlMpQ6pKFSOg+2/dhBjNOSQg6s66alcdnhFeo/b5/CKmJX5i4NUDkjauJW3sPmsHMaqOa+xeUKwcgxuvIL3XiYWb8kRXpXevmDFNRNTjva2Wu7M1OsvPsHdLiKFvc21r40FOe6Yen/I7RGrrlwWWUSGj67qZK9zYEHo/p5bOz+RlqEH5OxBOqSQkJFbqsOr5vxS7tDqI+u0eXJ6D2/JQdtM5Vg+U/ji5LiTg/YWe1pr5T1ZdZ6xIAdbHzsVgpVjR3HWXZwg6xaQ7XaULOxvLM7ivkXInq3CgpBkLvixXDkALIeYJKwcJblR+TjfXbAcJYtN5MUUfIw7OZqbrSEwlTukovi7HHT7ZZHFH0mVAwNSUEEa1mXeCy+sri9LvJTuG5/KDY3N+yEWxFM5PqpWVw1VqgJg/aDV+XvmlUtNJHjZGw+VAMshNrQaV3LsbakjT3G1t9ZeY7e790fseW6zwdtyLDMWDeJE31kLQdlYsuApSGxdS8OLHuLEMK55GtfLlhWDHU7RBOsb1i0gb2lsXJe1G8tB0Ses/BOfHOHX/gpufXf5sU37ctUlfL0HXw/Cnspde1MY+cHzFMPGuUsnrBztLVvJbdru9hoUb8qxLKLocaEEZWhQFmUth7JHR7Yp5j4dzNbpjhyAkCAwfXHNtcFCclD08StuDU/MdxSE6VXCzPncHc4ULANdHqhWnxt8LJjcis7CyqFUz8G2d0LJsWt7GfeWuz2t/K/ckcrB9nu/UFqOO0LWcC9lE4MG5Q9j1nL7XBJSEIal8EQOenX8+ZtnOwnSUJq9CqZiclCE5KBJn1DAPY899MhU8tr+fqt6gMoxWK0ln3I7uSkg/WS1xuGzbnzPc3jKhJXjwoH4VpcfmXeFNy4C3mUsIzf9ScVBjuDlQVgKJeTAvUdD6YLlO0sXLIcyUuQIq8x4kgYbfIdPby74CgsCSRefPx/KD56/AIh7D5gO1Gj/c9Kqefdk9RXkDmql5Qhbf+GtI7++K/adCSVHe0steS+Sp0MqoNMW87DScnDLxuJXpaQtP1vKu08l5aBnq3Dvwc67gv01puv05ryzWBBI9AZCVg64Ff3kpiDyUBbkU2GUloNtZ2mu6aUJI8frzdZkOt/eWpvtmCufLls0+ZqSV+SAY4ioohqa8DYUseDkqxeXEYPtOejrfPgEgWnjqnlGvD2LoSr9L1gOLs+S/y0W5MQjl0V8aA1ej3uP/moNuZthuOJysj9vyQHfFCnNMf1xwshBe4v21lqHWyHcBYuhtBy4HB9icgAO9YYVOXwk0xWsHPAyhR0lWUsbShfUUTka12WRa0SN67JLxb7PQeHrPShBkWuCWTnYoRQeWp2s1myn2yl5Khe3b2LJ0VL3AJmSZ8Fr94qm5i3X0nlcDwWLAemtrqi7cDlXeFMOQGpdGFYOWG5cl10OU7b3GJFkwaNS5Aj7XXKUkBwUKsdjP7+Ok4SmwWrNJhheDVRruQu33pBDX5XxC1guXRS1wl05/A4xOfa01JIru3tatpGzLJ5y+EjkTCyGu70Hnxzw6TNcDrO9bN5lDSULXH7PWyk5gMaSbPJdOnfkAPCvMx9UkJpfzrVnpP/sK9x7DFVqyEXBk9Xq3UoNq/jaVboocuaEkIMOqQ60bZ3Z/sq2a10ldls+sBBsqq9XXYzLi8EnBy7DR8O6BSe23xPF+wEWJeCTAwAhlixRXeyOHAANQk1lsgHnUWivgXsP0oPUaMi7fWFeCTkMlen3YTEoE0KO3c+u524XOfTKtqBdOzdN40tQhp3no6t3+odYCJzwNmJgOaSCD4qVRkgOAE7nNhRlveCOHIBQMFK0cSuuS5p1L68cJ62a96FMf81UsxJyiLVl3Muxt7mO/GNu27b8kvr6skv3tNY1OWwog25bzC+xCEIJbyuEO3I0FGfmnQ9McgGtoTT7I1zGU8Tk2LEum7yL1l059BVp2RCQ8P09WA6vTHf69jiI8e5jOjtcZcdDKzr1VA5jZQb5DLSuYq7T1Xdg/MvBvpituW6zw0Yy6LTFnMYCuEq4Dj6E5NhRsoBX4oaSBWVozE/efP7s2vmJdF3DuoXvN5Ut7Gwozn59iX6NpAeNMGJyALTHckcOwFiVXgqBGX7+ANiwMeMgm6/X52lBApCke0PEWTYPLgbC1BM59JXp3bB/fUU6+awAS8liE3lmnIpRkhv1fVyGMqbloOxtqf3CnYt/b3Wb2nHQy0379qkux/VShORoKl1wjl1uKF24sKEs+ydCaSfPm9OhzmWRRU6fHJCCKzkAKog7cgCGyvR8CNCw9Ulk2GuszHD4pDCIYU663x5z9Qqu12BxVw5dxWxyc6GhcnYOzgNKF0e3wNRVrwGMWTn2tG4l3fbul2rnwvSNlq0L8XZKsLe1lnzMkPRO8HaSlrp0XEYIKgZIxK189P3L2d5BbmLrXhpZRH5l5SJFDqBhXVZ+Q0kmeXGzW1hHvh3ICVKVwbUX5NjzP7Gk93DY5jzuyBFRlbFA6BiDQurMMa0b33I0b30PpiRgm7c6fUpLSdpbam+gckjtoQ51R5l/PfcBOyQqh2FL99Lwzd1f8vV+cqFyLNWXzoWE88XAcrSFx9+MyyjJyC952jKYD68aGeqEWfKvp6d2cXlArhzGyow6V2IApTnRb0g53gDGpBy76rdwX8DZ3Vq3G78HV2lAiOe3lU2RIweAh1WsFMYtNodhhlxw3XLAcrQY4rJwGcXJn0Fe4EwXDRvnFColB6l3ifTT7FLk6A5e/eqYlIM7EG/dJv6yXYWgQyluaNVa+wouwwcbwEr0FkrREh5vD7fkc3I8r9J7/B5aORirMuphGp6Y5/DpMRYpchir5ryE14lRmmsiZzcZMQRvBenSrGoZk3K0t9ZaYf2elrqNuKy32NtWd2hPc93LcnoPKsb3Ex+2R9Z0ka+7jjbwSw1y0J5jWUTx2XqV6lJczhfgnsOwYbYmvDItLrwq40drFkefonI4buU+5Iu0i6MPu+o1gDHbc+B8X7DvhVrydSF35BitNgtw0fPhZiIGHZLdZVz9Ki7kbUIrUucY191IrnXgPCD/+9O/Eeo5jJXpzeyyHKgYJblRz+M8Fr+XQ+ilbrtb657FZX0Fd2DeXOfyNCoE36K0x+zL3Dgu8Cbwaw1to8OqfSqj4Olob+LUc9DrI+Vz/kGHVUW3xdhvu/fKo2Eb0mc7bu0eUnoNYMzK0fanjQ5f/fQl7c1190jtPTw5aPYmd0eucjggfyk0+mpcxptQIbAcLOwxR2FWhOC9WnLgeo1Fpj/gPMyYlWO076m/cGBeJ/qPTMWwlOweCYYtPS7vyPU2d4YXLXo+PNGeZ1poz48euW7SaoiV/PFJJZArR16OnnxUxxPmqVTfkdprAGNWjvr6esmn7bwBN7Ry0XuAGEujS7lhFbQdl/El81Rll91jLKiGHuOuyCLSc0BwuroYqDRh5vz1BkveMqlylCyO9lheOWIAY1YOV0HpTQ6/vNnAyiF2jYUejMPUsLnnL6qy5316yhRzZ0RRJz0Qp8MqCM7r43/i83/PC2KUXYTzgNLF0d9yB+Q5Jo9emlGyyPTMyEF4xJU4T4gxLccb5x9y8jWsGK56EGjr1Xkv+8UZq2URxeTuXjrUo3L8X3jCNxCk1shUxU6ZihGWkH8KpmK9BkB/6eX82gtBxLjVVIrXi+H/cmzu/W1729ab+eTgUkutw5sBvcGels3pWAa+1N5S10O3oW2lwRi+uedBx1qVgz245mOJsZi8zZC25cnwuZwctPeAtC1ilr1ZH7sFb68k7PEGfWUPH1iOkpuNbp00kNtjUPxeDgqWA+f7GxFbuv/DyuGLNtNAfzEoMpiuu8O4dt5SY1F1S1js36gYbK9B04yEkYePSMAmrMh9WRNhaNbHNdSrVBeLSSeX0OkF5E6DMEveF2K9BnwrnJWjdFHEdSW5Ue24nCs86XV6AtfM9ms59DU95Ia6sSQH204ajDCfofkZeT7aWzSHxXKfEABgv+w8TUuNxeSVqRgqBySDeaXbF9nEMFjyRx6AchbD4ewjK4ZD75Fj6ii5OdLhVvSSxQanb/oV50aRx23dpSu48DOYdmtWbfdLOQw1PW+QGWvzd53kKNv1HVzeH8DtpGLAdFlkkVdvH6FyLNEXXwu3hMD8HcY1N7FisMJgWDnw8YDOnOdRsAHscArnFS2KJm+DLM413V+aE31UKJXkRpPbhrxNp6aQ3IPFiuFXctAeAgccJ4ifgdt30/WbHeQQC0wluCOyOFqot5AiR2jcihgsBxvI8KuvtxRwx1RSMSQ+mCQmBoB7CbkJ1+cJtNewaQpXYzk61atG/TqVymjt+TDwUZsa5nHQ+ZschprO13HbqBDX3/a0fWn0Oi4wl0UUVeLtleCOsLXckGpp5NrjWAialoYXbXXccgR4MyFMqRBk2biS95YSXULeewZLPjmLKIYm4dcGVga9Jd8nZ8Pc5ZAmzwwC2FVlF3WoV+3GYnCCaFZ14W19RkRN97eGmt6RB2Nqer7AQedPguD2YDno1CFADaW5uB4lWBpZ9AHeF054G0pg4kryQ2Sw5D8B05C4lddAYI+cTVrCe8HVYMlLhjJhlvxjenP+w2EJ+eTFcHpL3hd6Sx73yQR/oy9gjaYnKP+GHvXqIkgd6tXf6whabYK8bm3hX7EMQqljWuEPcd0sUAavk03E5u5nwjfblhu3dJ9hAz68xrYVBxxfcqxNHLwt3T7c2mWEdtCEt8PgOnCiwTj7Z01OAUoE4Xm8dZmhOIJLkcVv43w+7owqfhXXLZbw9iyuhj6uoN8LxGhjRyQKScjzymPM/ooicvAFOA42V8mw2ZaH65CCsaZb8m0JxhpbH96vUILydOoOUuVQkrCElcdDEh9MwuulokkoDAgz59+jN+cf5IZnid456+UvdAetmfmWZvWtfKk3aDX3cnO38SSIPEWOHHKJqOlx64OdwJ0RxZvdTcuMawpgmqPP8/hmvUlGGfyrKyXhOtwF5MB1y0lsXYZNHUlCeZNM4g7/H4OWKc5VHlx3AAAAAElFTkSuQmCC';
+const xf=(o={})=>({name:XFONT,size:12,...o});
+const nfRow=S=>DEC[S]?'#,##0.00_);[Red](#,##0.00)':'#,##0_);[Red](#,##0)';
+const nfBig=S=>{const z=DEC[S]?'#,##0.00':'#,##0';return `"${SYM[S]}"${z};[Red]"${SYM[S]}"\\-${z}`};
+const jpDate=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${+m[1]}/${+m[2]}/${+m[3]}`:String(s||'')};
+const wlen=s=>[...String(s||'')].reduce((a,ch)=>a+(ch.charCodeAt(0)>255?2:1),0);
+const lines=(s,cap)=>String(s||'').split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(wlen(l)/cap)),0);
+function buildInto(wb,internal,R,suf,man){const q=Q(),k=calc(q,R),t=TX[q.lang]||TX.ja,S=q.sub,d=DEC[S],nr=nfRow(S),th=(+settings.threshold||0)/100,is=settings.issuer;
+ const used=wb._used||(wb._used=[]),sn=n=>{let b=String(n||'Sheet').replace(/[\[\]:*?\/\\]/g,' ').trim().slice(0,28-suf.length)||'Sheet',x=b+suf,i=2;while(used.includes(x.toLowerCase()))x=b+'_'+(i++)+suf;used.push(x.toLowerCase());return x};
+ if(!wb._img)wb._img={est:wb.addImage({base64:IMG_EST,extension:'png'}),logo:wb.addImage({base64:IMG_LOGO,extension:'png'})};
+ const manNote=man?'【手動レートで計算】'+man.used.map(c=>rateTxt(c,man.R(c))).join('　'):'';
+ const ref=n=>`'${n.replace(/'/g,"''")}'`;
+ const badRule=(r,lim=th)=>({ref:r,rules:[{type:'cellIs',operator:'lessThan',formulae:[lim],style:{font:{color:{argb:'FFD7263D'},bold:true},fill:{type:'pattern',pattern:'solid',bgColor:{argb:'FFFDE4E7'}}}}]});
+ const AJ='ABCDEFGHIJ'.split('');
+ const put=(ws,a,v,font={},al={},fmt)=>{const c=ws.getCell(a);c.value=v;c.font=xf(font);c.alignment={vertical:'middle',...al};if(fmt)c.numFmt=fmt;return c};
+ const band=(ws,r,argb,h)=>{ws.getRow(r).height=h;AJ.forEach(c=>ws.getCell(c+r).fill={type:'pattern',pattern:'solid',fgColor:{argb}})};
+ const H=(ws,r,h)=>{ws.getRow(r).height=h};
+ const setup=ws=>{[['A',3.9],['B',6],['C',22],['D',34],['E',10],['F',10],['G',18],['H',18],['I',3.9],['J',3.9],['K',16],['L',16],['M',16],['N',16],['O',11]].forEach(([c,w])=>ws.getColumn(c).width=w);
+  ws.views=[{showGridLines:false}];
+  ws.pageSetup={paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,margins:{left:0.118,right:0.118,top:0.354,bottom:0.354,header:0.3,footer:0.3}}};
+ const head=(ws,label,note)=>{setup(ws);
+  [[1,19.5],[3,24],[4,18.75],[5,18.75],[6,18.75],[7,18.75],[8,18.75],[9,18.75],[10,18.75],[11,18.75],[12,7.5],[13,32.25],[14,8.25],[16,45],[19,26.25],[20,7.5]].forEach(([r,h])=>H(ws,r,h));
+  if(manNote&&internal)put(ws,'C1',manNote,{bold:true,color:{argb:'FFD7263D'}});
+  band(ws,2,PURPLE,5.25);
+  put(ws,'H3',dateTxt(q),{size:14},{horizontal:'right'});
+  if(q.lang!=='en')put(ws,'C4','見積書',{size:12},{vertical:'bottom'});
+  ws.addImage(wb._img.est,{tl:{col:2.02,row:4.15},ext:{width:430,height:50},editAs:'oneCell'});
+  ws.addImage(wb._img.logo,{tl:{col:7.33,row:3.02},ext:{width:82,height:72},editAs:'oneCell'});
+  {const iv=issuerFor(q);[['H7',iv[0]],['H8',iv[1]],['H9',iv[2]],['H10',iv[3]],['H11',t.person+(iv[4]||'')]].forEach(([a,v])=>put(ws,a,v||'',{},{horizontal:'right'}))}
+  {const tl=toLines(q);ws.mergeCells('C8:D9');put(ws,'C8',tl.join('\n'),{size:tl.length>1?16:20},{horizontal:'left',wrapText:true})}
+  put(ws,'C10',t.g1,{},{vertical:'bottom'});put(ws,'C11',t.g2,{},{vertical:'bottom'});
+  put(ws,'C13',t.proj+(q.title||''),{size:18,bold:true});
+  ws.mergeCells('A15:J15');ws.mergeCells('A16:J16');
+  const lc=ws.getCell('A15');
+  if(note){lc.value={richText:[{text:label,font:xf({size:14,color:{argb:'FFFFFFFF'}})},{text:'\n'+paren(note),font:xf({size:12,color:{argb:'FFFFFFFF'}})}]};H(ws,15,40)}
+  else{lc.value=label;lc.font=xf({size:14,color:{argb:'FFFFFFFF'}});H(ws,15,20.25)}
+  lc.alignment={horizontal:'center',vertical:'bottom',wrapText:true};
+  [15,16].forEach(r=>AJ.forEach(c=>ws.getCell(c+r).fill={type:'pattern',pattern:'solid',fgColor:{argb:PURPLE}}));
+  const a=ws.getCell('A16');a.font=xf({size:28,bold:true,color:{argb:'FFFFFFFF'}});a.alignment={horizontal:'center',vertical:'middle'};a.numFmt=nfBig(S);
+  band(ws,17,PURPLE,7.5);band(ws,18,GRAY,6.75);
+  ['P R O D U C T','D E S C R I P T I O N','D A T E',"Q' T Y",'P R I C E','A M O U N T'].forEach((v,i)=>put(ws,'CDEFGH'[i]+19,v,{bold:true},{horizontal:'center'}))};
+ const ihead=(ws,labels)=>labels.forEach((v,i)=>put(ws,'KLMNO'[i]+19,v,{},{horizontal:'center'}));
+ const num=(ws,a,v,fmt=nr,font={})=>put(ws,a,v,font,{horizontal:'right'},fmt);
+ const pctc=(ws,a,f,font={})=>put(ws,a,f,font,{horizontal:'right'},'0.0%');
+ const foot=(ws,r,labels)=>{/* 灰帯→小計→（税）→紫帯 */
+  H(ws,r,16);band(ws,r+1,GRAY,19.5);if(internal&&labels)labels.forEach(([c,v])=>put(ws,c+(r+1),v,{},{horizontal:'right'}));H(ws,r+2,6.75);return r+3};
+ const tot=wb.addWorksheet(sn(t.tot));
+ const subRows=[];
+ /* 詳細ページ（2P目以降）を作らないカテゴリは社外用ではシートを作らない。社内用は原価確認のため常に作る */
+ const sheets=q.cats.map(c=>(internal||c.detail!==false)?wb.addWorksheet(sn(c.name)):null);
+ let pgc=2;const pno=sheets.map(w=>w?pgc++:null);
+ q.cats.forEach((c,i)=>{const ws=sheets[i],kc=k.cats[i];if(!ws)return;head(ws,c.name,c.note);if(internal)ihead(ws,[t.cost,t.costT,t.pr,t.tg,t.m]);
+  let r=21;const first=21;
+  c.rows.forEach((row,j)=>{if(j>0&&String(row.item||'').trim()){H(ws,r,14);r++}
+   const x=kc.rows[j],h=Math.max(30,Math.max(lines(row.desc,30),lines(row.item,20))*17+12);H(ws,r,h);
+   put(ws,'C'+r,row.item||'',{},{horizontal:'center',wrapText:true});put(ws,'D'+r,row.desc||'',{},{horizontal:'left',wrapText:true});
+   put(ws,'E'+r,+row.days||0,{},{horizontal:'center'},'#,##0.##');put(ws,'F'+r,+row.qty||0,{},{horizontal:'center'},'#,##0.##');
+   num(ws,'G'+r,x.p);num(ws,'H'+r,{formula:`ROUND(G${r}*F${r}*E${r},${d})`,result:x.amt});
+   if(internal){num(ws,'K'+r,x.co);num(ws,'L'+r,{formula:`ROUND(K${r}*F${r}*E${r},${d})`,result:x.ct});num(ws,'M'+r,{formula:`H${r}-L${r}`,result:x.amt-x.ct});
+    num(ws,'N'+r,{formula:`ROUND(K${r}*(1+${(+q.markup||0)/100}),${d})`});pctc(ws,'O'+r,{formula:`IF(H${r}=0,"",M${r}/H${r})`})}
+   r++});
+  const last=r-1,s=foot(ws,r,[['L',t.costT],['M',t.pr],['O',t.m]]);subRows[i]=s;
+  H(ws,s,30.75);ws.mergeCells(`C${s}:D${s+2}`);put(ws,'C'+s,'MEMO',{},{horizontal:'left',vertical:'top'});
+  put(ws,'G'+s,'S U B T O T A L',{size:14,bold:true},{horizontal:'right'});
+  num(ws,'H'+s,last>=first?{formula:`SUM(H${first}:H${last})`,result:kc.amt}:0,nr,{size:14,bold:true});
+  if(internal){num(ws,'L'+s,last>=first?{formula:`SUM(L${first}:L${last})`,result:kc.cost}:0);num(ws,'M'+s,{formula:`H${s}-L${s}`,result:kc.amt-kc.cost});pctc(ws,'O'+s,{formula:`IF(H${s}=0,"",M${s}/H${s})`},{bold:true});if(last>=first)ws.addConditionalFormatting(badRule(`O${first}:O${last}`,0))}
+  H(ws,s+1,6.75);H(ws,s+2,6.75);band(ws,s+3,PURPLE,6.75);
+  const a=ws.getCell('A16');a.value={formula:`H${s}`,result:kc.amt};
+  ws.pageSetup.printArea=`A1:J${s+3}`});
+ /* トータル */
+ head(tot,'A M O U N T');if(internal)ihead(tot,[t.cost,t.pr,t.m]);
+ let r=21;q.cats.forEach((c,i)=>{const sh=sheets[i]?ref(sheets[i].name):null,kc=k.cats[i];H(tot,r,33.75);
+  put(tot,'C'+r,c.name,{},{horizontal:'center',wrapText:true});put(tot,'D'+r,sh?t.see(pno[i]):'',{},{horizontal:'left'});
+  put(tot,'E'+r,1,{},{horizontal:'center'});put(tot,'F'+r,1,{},{horizontal:'center'});
+  num(tot,'G'+r,sh?{formula:`${sh}!H${subRows[i]}`,result:kc.amt}:kc.amt);num(tot,'H'+r,{formula:`ROUND(G${r}*F${r}*E${r},${d})`,result:kc.amt});
+  if(internal){num(tot,'K'+r,sh?{formula:`${sh}!L${subRows[i]}`,result:kc.cost}:kc.cost);num(tot,'L'+r,{formula:`H${r}-K${r}`,result:kc.amt-kc.cost});pctc(tot,'M'+r,{formula:`IF(H${r}=0,"",L${r}/H${r})`})}
+  if(c.note&&String(c.note).trim()){H(tot,r+1,20);put(tot,'C'+(r+1),paren(c.note),{size:10},{horizontal:'center',vertical:'top',wrapText:true});H(tot,r+2,12);r+=3}else{H(tot,r+1,16);r+=2}});
+ const lastCat=Math.max(21,r-1),mr=r;H(tot,mr,33.75);
+ put(tot,'C'+mr,q.mgLabel||t.mg,{},{horizontal:'center'});put(tot,'E'+mr,(+q.mgmt||0)/100,{},{horizontal:'center'},'0%');
+ num(tot,'H'+mr,{formula:`ROUND(SUM(H21:H${lastCat})*E${mr},${d})`,result:k.mg});
+ if(internal){num(tot,'K'+mr,0);num(tot,'L'+mr,{formula:`H${mr}-K${mr}`,result:k.mg})}
+ let dr=mr;if(k.disc){dr=mr+1;H(tot,dr,33.75);put(tot,'C'+dr,t.disc+(q.discType==='pct'?`（${+q.disc}%）`:''),{},{horizontal:'center'});
+  num(tot,'H'+dr,q.discType==='pct'?{formula:`-ROUND(SUM(H21:H${mr})*${(+q.disc||0)/100},${d})`,result:-k.disc}:-k.disc,DEC[S]?'#,##0.00;-#,##0.00':'#,##0;-#,##0');if(internal)num(tot,'L'+dr,{formula:`H${dr}`,result:-k.disc})}
+ const sr=foot(tot,dr+1,[['K',t.cost],['L',t.pr],['M',t.m]]),xr=sr+2;
+ [[sr,30.75],[sr+1,6.75],[xr,30.75],[xr+1,6.75]].forEach(([a,h])=>H(tot,a,h));band(tot,xr+2,PURPLE,6.75);
+ tot.mergeCells(`C${sr}:D${xr}`);put(tot,'C'+sr,'MEMO'+(q.memo?'\n'+q.memo:''),{},{horizontal:'left',vertical:'top',wrapText:true});
+ put(tot,'G'+sr,'S U B T O T A L',{size:14,bold:true},{horizontal:'right'});num(tot,'H'+sr,{formula:`SUM(H21:H${dr})`,result:k.sub},nr,{size:14,bold:true});
+ put(tot,'G'+xr,q.lang==='en'?`T A X ( ${+q.tax||0} % )`:`T A X（ ${+q.tax||0} % ）`,{size:14,bold:true},{horizontal:'right'});num(tot,'H'+xr,{formula:`ROUND(H${sr}*${(+q.tax||0)/100},${d})`,result:k.tax},nr,{size:14,bold:true});
+ tot.getCell('A16').value={formula:`H${sr}+H${xr}`,result:k.total};
+ tot.pageSetup.printArea=`A1:J${xr+2}`;
+ if(internal){num(tot,'K'+sr,{formula:`SUM(K21:K${dr})`,result:k.cc});num(tot,'L'+sr,{formula:`SUM(L21:L${dr})`,result:k.pr});
+  pctc(tot,'M'+sr,{formula:`IF(H${sr}=0,"",L${sr}/H${sr})`,result:k.m??''},{bold:true});tot.addConditionalFormatting(badRule(`M${sr}`));
+  /* 為替レート */
+  const rs=wb.addWorksheet(sn(t.rt));rs.views=[{showGridLines:false}];rs.getColumn('A').width=10;['B','C','D'].forEach(x=>rs.getColumn(x).width=18);rs.getColumn('E').width=56;
+  put(rs,'A1',t.rt+(man?'（手動入力）':''),{size:14,bold:true});
+  (man?['通貨','計算レート（手動）','','','備考']:['通貨','仲値（TTM）','上乗せ','計算レート','備考']).forEach((v,i)=>put(rs,'ABCDE'[i]+3,v,{bold:true}));
+  CUR.forEach((c,i)=>{const n=4+i;put(rs,'A'+n,c);
+   let note;
+   if(man){num(rs,'B'+n,R(c),'#,##0.0000');note=c==='JPY'?'基準通貨':(man.used.includes(c)?'書き出し時に手動入力':'正規レート（'+rStd(c)+'）')}
+   else{num(rs,'B'+n,ttm(c),'#,##0.0000');num(rs,'C'+n,c==='JPY'?0:(+settings.buffer[c]||0),'#,##0.0000');num(rs,'D'+n,{formula:`B${n}+C${n}`,result:R(c)},'#,##0.0000');
+    note=c==='JPY'?'基準通貨':`三菱UFJ銀行 公表相場 ${rates.date} の仲値`+(rates.ok?(rates.stale&&rates.stale.includes(c)?'（当日公表なし・前回値）':''):'（最新を確認できず）')}
+   put(rs,'E'+n,note+(c==='KRW'?'／1ウォンあたり（銀行表示は100ウォンあたり）':''))});
+  put(rs,'A10',man?'このシート群は、書き出し時に手動で入力したレートで計算しています。':'換算ルール：三菱UFJ銀行の仲値＋上乗せのレートで、売値・原価とも換算しています。');
+  put(rs,'A11','書き出し日時');put(rs,'B11',new Date().toLocaleString('ja-JP'));
+  put(tot,'K'+(xr+4),t.prj,{bold:true});
+  num(tot,'L'+(xr+4),{formula:`ROUND(L${sr}*${ref(rs.name)}!${man?'B':'D'}${4+CUR.indexOf(S)},0)`,result:k.prJ},XF.JPY,{bold:true})}}
+async function saveFile(name,blob,multi){
+ if(window.claude&&claude.use){let dl=null;try{dl=await claude.use('downloads')}catch(e){}
+  if(dl){try{await dl.save({filename:name,data:blob});toast(`書き出しました：${name}`);return true}catch(e){toast(e&&e.code==='declined'?'保存をキャンセルしました':'保存できませんでした（'+(e&&e.code||'error')+'）');return false}}}
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
+ toast(`書き出しました：${name}`);if(multi)await new Promise(r=>setTimeout(r,600));return true}
+const safe=s=>String(s||'').replace(/[\\\/?%*:|"<>]/g,'_').slice(0,60);
+async function exportBoth(man){const btn=$('#bX'),old=btn.textContent;btn.disabled=true;btn.textContent='作成中…';
+ try{await loadXL();const q=Q();
+  for(const internal of [false,true]){const wb=new ExcelJS.Workbook();wb.creator=settings.issuer.company||'';wb.calcProperties.fullCalcOnLoad=true;
+   /* 社外用は手動レートのシートだけ（先方に2種類の見積を渡さない）。社内用は正規＋手動を併記 */
+   if(man&&!internal)buildInto(wb,false,man.R,'',man);else{buildInto(wb,internal,rStd,'',null);if(man)buildInto(wb,internal,man.R,'（手動レート）',man)}
+   const buf=await wb.xlsx.writeBuffer();
+   const ok=await saveOut(`${safe(q.title)||'見積'}_${q.date}_${internal?'社内用':'社外用'}${man&&internal?'_手動レート併記':''}.xlsx`,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),true);
+   if(ok===false)break}
+  }
+ catch(e){toast('Excelを作れませんでした：'+(e.message||e))}finally{btn.disabled=false;btn.textContent=old}}
+/* ---------- PDF（社外用・見積フォーマットの形） ---------- */
+const loadScript=src=>new Promise((ok,ng)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>ng(new Error('ライブラリを読み込めません'));document.head.appendChild(s)});
+async function loadPDFLibs(){if(!window.html2canvas)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');if(!(window.jspdf&&window.jspdf.jsPDF))await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')}
+const PCSS=`.pg{width:794px;height:1123px;background:#fff;color:#000;font-family:"A-OTF 新ゴ Pro M","A-OTF Shin Go Pro M","ShinGoPro-Medium","Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;font-size:12px;line-height:1.45;padding:44px 34px 0;box-sizing:border-box;position:relative;overflow:hidden;text-spacing-trim:space-all;font-kerning:none}
+.pg *{box-sizing:border-box}.pg .bar{height:4px;background:#5a3778;margin:0 -10px}
+.pg .hd{display:flex;justify-content:space-between;align-items:flex-start;padding:4px 30px 0}
+.pg .ja{font-size:11px;margin-top:22px}.pg .est{width:360px;height:auto;display:block;margin:2px 0 6px}
+.pg .to{font-size:19px;font-weight:500}.pg .gr{font-size:11px;margin-top:4px}
+.pg .hr{text-align:right;font-size:11.5px;line-height:1.6}.pg .dt{font-size:13.5px;letter-spacing:.12em}.pg .lg{width:66px;display:block;margin:0 0 2px auto}
+.pg .ttl{font-size:17px;font-weight:700;padding:10px 30px 8px}
+.pg .amt{background:#5a3778;color:#fff;text-align:center;margin:0 -10px;padding:5px 0 7px}.pg .amt .lb{font-size:13px;letter-spacing:.2em}.pg .amt .nt{font-size:11.5px;letter-spacing:0}
+.pg .amt .v{font-size:30px;font-weight:700;letter-spacing:.02em;line-height:1.25}.pg .gy{height:6px;background:#f2f2f2;margin:0 -10px 14px}
+.pg table{width:100%;border-collapse:collapse;table-layout:fixed}.pg th{font-size:11px;font-weight:700;letter-spacing:.28em;padding:6px 0 10px;text-align:center;white-space:nowrap}.pg th.s{letter-spacing:.14em}
+.pg td{padding:7px 4px;vertical-align:middle;font-size:12px}.pg td.c{text-align:center}.pg td.d{white-space:pre-wrap;word-break:normal;overflow-wrap:anywhere;line-break:strict}.pg td.n{text-align:right;letter-spacing:.06em;white-space:nowrap}
+.pg td.m{text-align:center;letter-spacing:.06em}.pg tr.sp td{padding:0;height:12px}.pg tr.nt td{padding-top:0;font-size:10px;vertical-align:top}
+.pg .ft{margin-top:22px}.pg .ft .gy{height:16px;margin-bottom:10px}.pg .sum{display:flex;justify-content:space-between;padding:0 30px}
+.pg .memo{white-space:pre-wrap;font-size:11.5px;max-width:52%}.pg .tot td{font-size:14px;font-weight:700;padding:6px 0 8px 18px;text-align:right}.pg .tot td.l{letter-spacing:.35em}
+.pg .cont{font-size:11px;color:#555;text-align:right;padding:6px 30px}.pg .botbar{height:4px;background:#5a3778;margin:14px -10px 0}`;
+function pdfSheets(R){const q=Q(),k=calc(q,R),t=TX[q.lang]||TX.ja,S=q.sub;
+ const nv=v=>{const n=+v||0;return (n<0?'-':'')+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:DEC[S],maximumFractionDigits:DEC[S]})};
+ const cats=q.cats.map((c,i)=>{const kc=k.cats[i],rows=[];c.rows.forEach((r,j)=>{if(j>0&&String(r.item||'').trim())rows.push('<tr class="sp"><td colspan="6"></td></tr>');const x=kc.rows[j];
+   rows.push(`<tr><td class="c">${esc(r.item)}</td><td class="d">${esc(r.desc)}</td><td class="m">${esc(+r.days||0)}</td><td class="m">${esc(+r.qty||0)}</td><td class="n">${nv(x.p)}</td><td class="n">${nv(x.amt)}</td></tr>`)});
+  return{incl:c.detail!==false,label:esc(c.name),note:c.note&&String(c.note).trim()?esc(paren(c.note)):'',amount:kc.amt,rows,foot:[['S U B T O T A L',nv(kc.amt)]],memo:''}});
+ const totRows=pn=>{const rows=[];q.cats.forEach((c,i)=>{const kc=k.cats[i];rows.push(`<tr style="height:46px"><td class="c">${esc(c.name)}</td><td class="d">${pn[i]?esc(t.see(pn[i])):''}</td><td class="m">1</td><td class="m">1</td><td class="n">${nv(kc.amt)}</td><td class="n">${nv(kc.amt)}</td></tr>`);
+   if(c.note&&String(c.note).trim())rows.push(`<tr class="nt"><td class="c">${esc(paren(c.note))}</td><td colspan="5"></td></tr>`)});
+  rows.push(`<tr style="height:46px"><td class="c">${esc(q.mgLabel||t.mg)}</td><td></td><td class="m">${+q.mgmt||0}%</td><td></td><td></td><td class="n">${nv(k.mg)}</td></tr>`);
+  if(k.disc)rows.push(`<tr style="height:46px"><td class="c">${esc(t.disc+(q.discType==='pct'?`（${+q.disc}%）`:''))}</td><td></td><td></td><td></td><td></td><td class="n">${nv(-k.disc)}</td></tr>`);return rows};
+ const total={label:'A M O U N T',note:'',amount:k.total,rowsFn:totRows,foot:[['S U B T O T A L',nv(k.sub)],[q.lang==='en'?`T A X ( ${+q.tax||0} % )`:`T A X（ ${+q.tax||0} % ）`,nv(k.tax)]],memo:q.memo||''};
+ return{q,t,S,total,cats}}
+function pageHTML(sh,ctx,rows,{first,last}){const{q,t,S}=ctx,is=settings.issuer;
+ const head=first?`<div class="bar"></div><div class="hd"><div>${q.lang==='en'?'':'<div class="ja">見積書</div>'}<img class="est" src="${IMG_EST}"><div class="to">${toLines(q).map(esc).join('<br>')}</div><div class="gr">${esc(t.g1)}<br>${esc(t.g2)}</div></div>
+  <div class="hr"><div class="dt">${esc(dateTxt(q))}</div><img class="lg" src="${IMG_LOGO}"><div>${(iv=>[iv[0],iv[1],iv[2],iv[3]].filter(Boolean).map(esc).join('<br>')+'<br>'+esc(t.person+(iv[4]||'')))(issuerFor(q))}</div></div></div>
+  <div class="ttl">${esc(t.proj+(q.title||''))}</div><div class="amt"><div class="lb">${sh.label}</div>${sh.note?`<div class="nt">${sh.note}</div>`:''}<div class="v">${esc(fmt(sh.amount,S).replace('−','-'))}</div></div><div class="gy"></div>`
+  :`<div class="bar"></div><div class="cont">${sh.label}（続き）</div>`;
+ const table=`<table><colgroup><col style="width:19%"><col style="width:29%"><col style="width:10%"><col style="width:9%"><col style="width:16%"><col style="width:17%"></colgroup><thead><tr><th>P R O D U C T</th><th>D E S C R I P T I O N</th><th class="s">D A T E</th><th class="s">Q' T Y</th><th>P R I C E</th><th>A M O U N T</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+ const foot=last?`<div class="ft"><div class="gy"></div><div class="sum"><div class="memo">MEMO${sh.memo?'\n'+esc(sh.memo):''}</div><table class="tot" style="width:auto"><tbody>${sh.foot.map(([l,v])=>`<tr><td class="l">${esc(l)}</td><td>${v}</td></tr>`).join('')}</tbody></table></div><div class="botbar"></div></div>`:'<div class="cont">次ページへ続く</div>';
+ return `<div class="pg">${head}${table}${foot}</div>`}
+function paginate(host,sh,ctx,rows){const pages=[];let cur=[],first=true;const LIM=1123-40;
+ const fits=(rs,last)=>{host.innerHTML=pageHTML(sh,ctx,rs,{first,last});const pg=host.firstChild,tb=pg.querySelector('.ft')||pg.querySelector('.cont:last-of-type');const bottom=[...pg.children].filter(e=>e.tagName!=='STYLE').reduce((m,e)=>Math.max(m,e.offsetTop+e.offsetHeight),0);return bottom<=LIM};
+ for(const r of rows){if(fits([...cur,r],false)){cur.push(r);continue}
+  if(cur.length){pages.push(pageHTML(sh,ctx,cur,{first,last:false}));first=false;cur=[r]}else{cur=[r]}}
+ if(fits(cur,true))pages.push(pageHTML(sh,ctx,cur,{first,last:true}));
+ else{pages.push(pageHTML(sh,ctx,cur,{first,last:false}));first=false;pages.push(pageHTML(sh,ctx,[],{first,last:true}))}
+ return pages}
+function pdfHost(){const host=document.createElement('div');host.style.cssText='position:fixed;left:-12000px;top:0;width:794px;z-index:-1';
+ const st=document.createElement('style');st.textContent=PCSS;host.appendChild(st);const box=document.createElement('div');host.appendChild(box);document.body.appendChild(host);return{host,box}}
+async function buildPages(R){const ctx=pdfSheets(R),{host,box}=pdfHost();
+ try{box.innerHTML=pageHTML(ctx.total,ctx,ctx.total.rowsFn(ctx.cats.map((c,i)=>i+2)),{first:true,last:true});
+  try{await document.fonts.ready;await new Promise(r=>setTimeout(r,300));await document.fonts.ready}catch(e){}
+  const catPages=ctx.cats.map(sh=>sh.incl?paginate(box,sh,ctx,sh.rows):[]);
+  let totPages=paginate(box,ctx.total,ctx,ctx.total.rowsFn(ctx.cats.map(()=>0)));
+  let p=totPages.length+1;const pn=catPages.map(ps=>{if(!ps.length)return null;const n=p;p+=ps.length;return n});
+  totPages=paginate(box,ctx.total,ctx,ctx.total.rowsFn(pn));
+  return{ctx,pages:[...totPages,...catPages.flat()]}}
+ finally{host.remove()}}
+async function buildPDF(R){const{ctx,pages}=await buildPages(R),{host,box}=pdfHost();
+ try{const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait',compress:true});
+  for(let i=0;i<pages.length;i++){box.innerHTML=pages[i];
+   const cv=await html2canvas(box.firstChild,{scale:2.2,backgroundColor:'#ffffff',logging:false,width:794,height:1123,windowWidth:900});
+   if(i)pdf.addPage();pdf.addImage(cv.toDataURL('image/jpeg',0.9),'JPEG',0,0,210,297,undefined,'FAST')}
+  pdf.setProperties({title:(ctx.q.title||'見積書'),creator:settings.issuer.company||''});
+  return pdf.output('blob')}
+ finally{host.remove()}}
+async function exportPDF(man){const btn=$('#bP'),old=btn.textContent;btn.disabled=true;btn.textContent='PDF作成中…';
+ try{await loadPDFLibs();const q=Q(),blob=await buildPDF(man?man.R:rStd);await saveOut(`${safe(q.title)||'見積'}_${q.date}.pdf`,blob)}
+ catch(e){toast('PDFを作れませんでした：'+(e.message||e))}finally{btn.disabled=false;btn.textContent=old}}
+/* ---------- Excel読み込み（過去の見積から作成） ---------- */
+const cv0=v=>{if(v==null)return null;if(v instanceof Date)return v;if(typeof v==='object'){if('result' in v)return cv0(v.result);if(v.richText)return v.richText.map(t=>t.text).join('');if('text' in v&&typeof v.text==='string')return v.text;return null}return v};
+const nrm=s=>String(s??'').replace(/[\s'’]/g,'').toUpperCase();
+const nm=v=>{if(typeof v==='number'&&isFinite(v))return v;if(typeof v==='string'){const t=v.replace(/[,¥￥\s]/g,'');if(t!==''&&isFinite(+t))return +t}return null};
+const str=v=>v==null?'':(v instanceof Date?v.toISOString().slice(0,10):String(v)).trim();
+const fml=v=>v&&typeof v==='object'?(v.formula||v.sharedFormula||''):'';
+function readSheet(ws){let hr=0;const cols={};
+ ws.eachRow((row,r)=>{if(!hr)row.eachCell((c)=>{if(nrm(cv0(c.value))==='PRODUCT')hr=r})});
+ if(!hr)return null;
+ ws.getRow(hr).eachCell((c,ci)=>{const t=nrm(cv0(c.value));if(t==='PRODUCT')cols.item=ci;else if(t==='DESCRIPTION')cols.desc=ci;else if(t==='DATE')cols.days=ci;else if(t==='QTY')cols.qty=ci;else if(t==='PRICE')cols.price=ci;else if(t==='AMOUNT')cols.amt=ci;else if(t==='原価'&&!cols.cost&&ci>(cols.amt||0))cols.cost=ci});
+ const g=(rw,ci)=>ci?cv0(rw.getCell(ci).value):null;
+ let end=0,sub=null,tax=null,memo='';
+ for(let r=hr+1;r<=ws.rowCount;r++){const rw=ws.getRow(r);rw.eachCell(c=>{const v=cv0(c.value);const n=nrm(v);
+   if(!end&&n.includes('SUBTOTAL')){end=r;sub=nm(g(rw,cols.amt))}
+   const m=String(v??'').match(/T\s*A\s*X[^0-9]*([0-9.]+)\s*%/i);if(m&&tax==null)tax=+m[1];
+   if(typeof v==='string'&&/^\s*MEMO/i.test(v))memo=v.replace(/^\s*MEMO\s*/i,'').trim()})}
+ if(!end)end=ws.rowCount+1;
+ const rows=[];let mg=null,disc=null;
+ for(let r=hr+1;r<end;r++){const rw=ws.getRow(r);const item=str(g(rw,cols.item)),desc=str(g(rw,cols.desc));
+  let days=nm(g(rw,cols.days)),qty=nm(g(rw,cols.qty)),price=nm(g(rw,cols.price));const amt=nm(g(rw,cols.amt)),cost=nm(g(rw,cols.cost));
+  const pref=fml(rw.getCell(cols.price||1).value);
+  if(!item&&!desc&&price==null&&amt==null)continue;
+  if(/管理費/.test(item)&&price==null&&days!=null&&days>0&&days<1){mg={label:item,rate:+(days*100).toFixed(4)};continue}
+  if(/値引/.test(item+desc)&&price==null){disc=Math.abs(amt||0);continue}
+  if(price==null&&amt!=null){price=amt;days=1;qty=1}
+  if(price==null&&!item&&!desc)continue;
+  rows.push({item,desc,days:days??1,qty:qty??1,price:price??0,cost:cost??0,ref:(pref.match(/^'?(.+?)'?!\$?[A-Z]+\$?\d+$/)||[])[1]||''})}
+ const label=str(cv0(ws.getCell('A15').value));
+ return{name:ws.name,label:nrm(label)==='AMOUNT'?'':label,title:str(cv0(ws.getCell('C13').value)),client:str(cv0(ws.getCell('C8').value)),date:cv0(ws.getCell('H3').value),
+  g1:str(cv0(ws.getCell('C10').value)),rows,mg,disc,sub,tax,memo,isTotal:rows.some(x=>x.ref)}}
+let impData=null;
+async function importExcel(file){try{await loadXL();const wb=new ExcelJS.Workbook();await wb.xlsx.load(await file.arrayBuffer());
+  const sheets=[];wb.eachSheet(ws=>{try{const s=readSheet(ws);if(s)sheets.push(s)}catch(e){}});
+  if(!sheets.length){toast('見積の形式（P R O D U C T の見出し）のシートが見つかりませんでした');return}
+  const total=sheets.find(s=>s.isTotal)||null,refs=new Set(total?total.rows.map(r=>r.ref).filter(Boolean):[]);
+  impData={file:file.name,sheets,total};
+  $('#impBody').innerHTML=`<p class="hint" style="margin:0">「${esc(file.name)}」から新しい見積を作ります。読み込むシートを選んでください。</p>
+  <ul class="isl">${sheets.map((s,i)=>`<li><input type="checkbox" id="is${i}" data-i="${i}"${s===total||refs.has(s.name)||(!total&&i===0)?' checked':''}><label for="is${i}"><b>${esc(s.name)}</b>${s===total?'<span class="tag2">トータル</span>':refs.has(s.name)?'<span class="tag2">トータルから参照</span>':''}
+   <span>${s===total?'宛先・案件名・管理費・値引き・税・MEMOとカテゴリの並びを読み込み':`明細 ${s.rows.length}行`}${s.sub!=null?`　小計 ${fmt(s.sub,'JPY')}`:''}${s.label?`　（${esc(s.label)}）`:''}</span></label></li>`).join('')}</ul>
+  <p class="hint">トータルを選ぶと、そこから参照されている詳細シートがカテゴリになります。トータルなしで選んだシートは、それぞれ1つのカテゴリになります。日付は今日になります。</p>`;
+  $('#impBtns').innerHTML='<button class="pri" id="impGo">この内容で読み込む</button><button id="impCancel">キャンセル</button>';
+  $('#imp').hidden=false}
+ catch(e){toast('Excelを読み込めませんでした：'+(e.message||e))}}
+function buildImport(sel){const{sheets,total}=impData,useT=total&&sel.includes(total);
+ const pick=sel.filter(s=>s!==total),byName=Object.fromEntries(sheets.map(s=>[s.name,s]));
+ const head=useT?total:pick[0]||total;
+ let client=head.client,honor='御中',lang='ja',m;
+ if(/^\s*To:/i.test(client)){lang='en';client=client.replace(/^\s*To:\s*/i,'')}
+ else if(m=client.match(/^(.*?)[\s　]*(御中|様|殿)\s*$/)){client=m[1];honor=m[2]==='殿'?'様':m[2]}else honor='';
+ if(/[a-z]{4,}/i.test(head.g1)&&!/[ぁ-んァ-ン一-龥]/.test(head.g1))lang='en';
+ const title=head.title.replace(/^\s*(案件名|Project)\s*[：:]\s*/i,'');
+ const q=blankQuote();Object.assign(q,{title,client,honor,lang,sub:'JPY',cats:[],discType:'amt',disc:0,memo:'',importedFrom:impData.file});
+ const toRows=rows=>rows.map(r=>R(r.item,r.desc,r.days,r.qty,r.price,'JPY',r.cost,'JPY'));
+ const used=new Set();
+ if(useT){for(const r of total.rows){const sh=r.ref&&byName[r.ref];
+   if(sh&&pick.includes(sh)){used.add(sh);q.cats.push({id:uid(),name:r.item||sh.label||sh.name,detail:true,rows:toRows(sh.rows)})}
+   else q.cats.push({id:uid(),name:r.item||r.ref||'カテゴリ',detail:false,rows:[R(r.item||'',r.desc&&!/^詳細は/.test(r.desc)?r.desc:'',1,1,r.price,'JPY',0,'JPY')]})}
+  if(total.mg){q.mgmt=total.mg.rate;if(!/^管理費$/.test(total.mg.label))q.mgLabel=total.mg.label}else q.mgmt=0;
+  q.disc=total.disc||0;q.tax=total.tax??0;q.memo=total.memo||''}
+ else{q.mgmt=0;q.tax=0}
+ for(const sh of pick){if(used.has(sh))continue;q.cats.push({id:uid(),name:sh.label||sh.name,detail:true,rows:toRows(sh.rows)});
+  if(!useT){if(sh.mg&&!q.mgmt){q.mgmt=sh.mg.rate;if(!/^管理費$/.test(sh.mg.label))q.mgLabel=sh.mg.label}if(sh.disc)q.disc=(+q.disc||0)+sh.disc;if(sh.tax!=null)q.tax=sh.tax;if(sh.memo&&!q.memo)q.memo=sh.memo}}
+ q.cats.forEach(c=>{if(c.name&&!STD.includes(c.name)&&!settings.accounts.includes(c.name))settings.accounts.push(c.name)});LS.set('mq.settings',settings);
+ const orig=useT?total.sub:pick.reduce((a,s)=>a+(s.sub||0),0);
+ return{q,orig}}
+function doImport(){const sel=[...document.querySelectorAll('#impBody [data-i]')].filter(i=>i.checked).map(i=>impData.sheets[+i.dataset.i]);
+ if(!sel.length){toast('シートを1つ以上選んでください');return}
+ const{q,orig}=buildImport(sel);quotes.push(q);curId=q.id;persist();renderAll();
+ const k=calc(q),nRows=q.cats.reduce((a,c)=>a+c.rows.length,0),noCost=q.cats.reduce((a,c)=>a+c.rows.filter(r=>+r.price&&!+r.cost).length,0),same=orig!=null&&Math.abs(k.sub-orig)<1;
+ $('#impBody').innerHTML=`<div class="isum">読み込みました：カテゴリ ${q.cats.length}件・明細 ${nRows}行<br>
+  小計（税抜）：アプリ ${fmt(k.sub,'JPY')}　／　元のExcel ${orig!=null?fmt(orig,'JPY'):'不明'}　${orig==null?'':same?'<b class="ok">一致</b>':'<b class="ng">差があります</b>'}<br>
+  宛先：${esc(toLines(q).join(' ／ '))}　案件名：${esc(q.title||'（なし）')}<br>管理費 ${+q.mgmt||0}%・値引き ${fmt(q.disc||0,'JPY')}・税率 ${+q.tax||0}%</div>
+  <p class="hint">${noCost?`原価が入っていない行が ${noCost} 行あります（粗利が高く出ます）。`:''}${orig!=null&&!same?'差がある場合は、元のExcelで手入力された金額や特殊な計算式がないか確認してください。':''}日付は今日、提出通貨はJPYにしています。追加分の行を足して使ってください。</p>`;
+ $('#impBtns').innerHTML='<button class="pri" id="impClose2">見積を確認する</button>';window.scrollTo(0,0)}
+/* ---------- Googleドライブ保存 ---------- */
+if(!settings.drive)settings.drive={on:false,mcp:null,fsName:''};
+let mcpNS=null,fsHandle=null;
+const fsOK=()=>{try{return !!window.showDirectoryPicker&&window.self===window.top}catch(e){return false}};
+const driveMode=()=>mcpNS?'mcp':(fsOK()?'fs':null);
+const idb={open(){return new Promise((ok,ng)=>{const r=indexedDB.open('estilab',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>ng(r.error)})},
+ async get(k){try{const d=await this.open();return await new Promise(ok=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>ok(q.result);q.onerror=()=>ok(null)})}catch(e){return null}},
+ async set(k,v){try{const d=await this.open();return await new Promise(ok=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>ok(true);t.onerror=()=>ok(false)})}catch(e){return false}}};
+const destName=()=>{const m=driveMode(),d=settings.drive;return m==='mcp'?(d.mcp&&d.mcp.name)||'':m==='fs'?(fsHandle&&fsHandle.name)||'':''};
+function driveRow(){const m=driveMode(),d=settings.drive;
+ if(!m)return `<div class="xdr"><span>Googleドライブ保存：この環境では使えません（端末にダウンロードします）</span></div>`;
+ const nm=destName();
+ return `<div class="xdr"><label class="ck"><input type="checkbox" id="drvOn"${d.on?' checked':''}> Googleドライブに保存</label><span class="dst">${d.on?(nm?'保存先：<b>'+esc(nm)+'</b>':'<b class="w">保存先が未設定です</b>'):'オフ（端末にダウンロード）'}</span><button type="button" data-x="drvchg">${nm?'変更':'保存先を選ぶ'}</button></div>`}
+function renderDriveSet(){const m=driveMode(),d=settings.drive,el=$('#drvSet');if(!el)return;
+ el.innerHTML=!m?'<p class="hint">この環境ではGoogleドライブに直接保存できません。Claude上のページ（Googleドライブのコネクタを接続）か、PCのChromeで開いたアプリ版で使えます。</p>':
+ `<label class="ck"><input type="checkbox" id="drvOn2"${d.on?' checked':''}> 書き出したファイルをGoogleドライブに自動保存する</label>
+ <p class="hint">保存先：<b>${esc(destName()||'未設定')}</b>　${m==='mcp'?'（Googleドライブのコネクタ経由）':'（PCのGoogleドライブフォルダ）'}</p><button type="button" id="drvPick">${destName()?'保存先を変更':'保存先を選ぶ'}</button>`}
+async function pickDrive(){const m=driveMode();
+ if(m==='fs'){try{const h=await window.showDirectoryPicker({id:'estilab-out',mode:'readwrite'});fsHandle=h;await idb.set('dir',h);settings.drive.on=true;settings.drive.fsName=h.name;LS.set('mq.settings',settings);renderDriveSet();toast(`保存先を「${h.name}」にしました`)}catch(e){if(e&&e.name!=='AbortError')toast('フォルダを選べませんでした')}return}
+ if(m==='mcp')return new Promise(done=>{gdDone=done;$('#gd').hidden=false;$('#gdq').value='';gdSearch('')})}
+let gdDone=null;
+const payloadOf=r=>{let p=r&&('payload' in r)?r.payload:r;if(typeof p==='string'){try{p=JSON.parse(p)}catch(e){}}if(p&&p.content&&p.content[0]&&p.content[0].text){try{p=JSON.parse(p.content[0].text)}catch(e){}}if(p&&p.structuredContent)p=p.structuredContent;return p};
+async function gdSearch(q){const L=$('#gdlist');L.innerHTML='<li class="hint">読み込み中…</li>';
+ try{const qq="mimeType = 'application/vnd.google-apps.folder' and trashed = false"+(q?` and title contains '${q.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}'`:'');
+  const r=payloadOf(await mcpNS.callTool('Google Drive','search_files',{query:qq,pageSize:25,excludeContentSnippets:true,orderBy:q?'':'modifiedTime desc'}));
+  const fs=(r&&r.files)||[];
+  L.innerHTML=`<li><div><b>マイドライブ（いちばん上）</b></div><button data-gid="root" data-gname="マイドライブ">ここに保存</button></li>`+fs.map(f=>`<li><div><b>${esc(f.title)}</b><span>更新 ${esc(String(f.modifiedTime||'').slice(0,10))}　<a href="${esc(f.viewUrl||'#')}" target="_blank" rel="noopener">ドライブで見る</a></span></div><button data-gid="${esc(f.id)}" data-gname="${esc(f.title)}">ここに保存</button></li>`).join('')+(fs.length?'':'<li class="hint">見つかりませんでした</li>')}
+ catch(e){L.innerHTML=`<li class="hint">Googleドライブに接続できませんでした（${esc(e.code||e.message||e)}）。claude.aiでGoogleドライブのコネクタが接続されているか確認してください。</li>`}}
+function gdChoose(id,name){settings.drive.mcp={id,name};settings.drive.on=true;LS.set('mq.settings',settings);$('#gd').hidden=true;renderDriveSet();toast(`保存先を「${name}」にしました`);if(gdDone){gdDone();gdDone=null}}
+async function drivePerm(){if(driveMode()!=='fs'||!settings.drive.on||!fsHandle)return;try{if(await fsHandle.queryPermission({mode:'readwrite'})!=='granted')await fsHandle.requestPermission({mode:'readwrite'})}catch(e){}}
+const b64=blob=>new Promise((ok,ng)=>{const fr=new FileReader();fr.onload=()=>ok(String(fr.result).split(',')[1]);fr.onerror=()=>ng(fr.error);fr.readAsDataURL(blob)});
+async function driveSave(name,blob){const m=driveMode(),d=settings.drive;
+ if(m==='mcp'){if(!d.mcp)throw new Error('保存先が未設定');const input={title:name,base64Content:await b64(blob),contentMimeType:blob.type||'application/octet-stream',disableConversionToGoogleType:true};if(d.mcp.id!=='root')input.parentId=d.mcp.id;
+  await mcpNS.callTool('Google Drive','create_file',input);return d.mcp.name}
+ if(m==='fs'){if(!fsHandle)throw new Error('保存先が未設定');if(await fsHandle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('フォルダへの書き込みが許可されていません');
+  let fn=name,i=2;const dot=name.lastIndexOf('.');for(;;){try{await fsHandle.getFileHandle(fn);fn=name.slice(0,dot)+`(${i++})`+name.slice(dot)}catch(e){break}}
+  const fh=await fsHandle.getFileHandle(fn,{create:true}),w=await fh.createWritable();await w.write(blob);await w.close();return fsHandle.name}
+ throw new Error('この環境では使えません')}
+async function saveOut(name,blob,multi){const d=settings.drive;
+ if(d.on&&driveMode()&&destName()){try{const where=await driveSave(name,blob);toast(`Googleドライブ「${where}」に保存しました：${name}`);if(multi)await new Promise(r=>setTimeout(r,400));return true}
+  catch(e){toast('ドライブに保存できませんでした（'+(e.code||e.message||e)+'）。ダウンロードに切り替えます');await new Promise(r=>setTimeout(r,1500))}}
+ return saveFile(name,blob,multi)}
+(async()=>{fsHandle=await idb.get('dir').catch(()=>null)||null;
+ if(window.claude&&claude.use){try{mcpNS=await claude.use('mcp')}catch(e){mcpNS=null}}
+ renderDriveSet()})();
+/* ---------- プレビュー ---------- */
+const rateLine=()=>{const u=usedCur(Q());return u.length?'計算レート：'+u.map(c=>rateTxt(c,rStd(c))).join('　'):''};
+async function preview(){const btn=$('#bV'),old=btn.textContent;
+ /* 埋め込み表示（Claude上のページ・Googleドライブのプレビュー等）では新しいタブのPDFがブロックされるため、画面内プレビューにする */
+ let embedded=true;try{embedded=window.self!==window.top}catch(e){embedded=true}
+ let win=null;if(!embedded&&location.protocol!=='about:'){try{win=window.open('','_blank')}catch(e){win=null}}
+ if(win){try{win.document.title='PDFプレビュー作成中…';win.document.body.innerHTML='<p style="font:16px/1.6 sans-serif;padding:32px;color:#333">PDFプレビューを作成しています…<br><small>数秒かかります。このタブはそのままにしてください。</small></p>'}catch(e){try{win.close()}catch(_){};win=null}}
+ btn.disabled=true;btn.textContent='作成中…';
+ try{if(win){await loadPDFLibs();const blob=await buildPDF(rStd);win.location.href=URL.createObjectURL(blob);toast('新しいタブにプレビューを開きました')}
+  else{const{pages}=await buildPages(rStd);showPreview(pages)}}
+ catch(e){if(win)try{win.close()}catch(_){};toast('プレビューを作れませんでした：'+(e.message||e))}
+ finally{btn.disabled=false;btn.textContent=old}}
+function showPreview(pages){if(!document.getElementById('pcss')){const st=document.createElement('style');st.id='pcss';st.textContent=PCSS;document.head.appendChild(st)}
+ $('#pv').hidden=false;const sc=Math.min(1,(Math.min($('#pvbody').clientWidth,900)-24)/794);
+ $('#pvnote').textContent=`${pages.length}ページ　${rateLine()}`;
+ $('#pvbody').innerHTML=pages.map((h,i)=>`<div class="pvw" style="width:${794*sc}px;height:${1123*sc}px"><div style="transform:scale(${sc});transform-origin:0 0;width:794px">${h}</div></div><div class="pvn">${i+1} / ${pages.length}</div>`).join('');
+ $('#pv').hidden=false;$('#pvbody').scrollTop=0;$('#pvClose').focus()}
+/* 書き出し前のレート確認 */
+let xUsed=[];
+const usedCur=q=>{const u=new Set([q.sub]);q.cats.forEach(c=>c.rows.forEach(r=>{if(+r.price)u.add(r.pc);if(+r.cost)u.add(r.cc)}));return CUR.filter(c=>c!=='JPY'&&u.has(c))};
+const nowTxt=()=>{const d=new Date();return `${d.getMonth()+1}月${d.getDate()}日${d.getHours()}時${String(d.getMinutes()).padStart(2,'0')}分`};
+let xMode='xlsx';const runExport=man=>xMode==='pdf'?exportPDF(man):exportBoth(man);
+function askExport(mode){if(mode)xMode=mode;xUsed=usedCur(Q());
+ $('#xh').textContent=xMode==='pdf'?'書き出し前の確認（PDF・社外用）':'書き出し前の確認（社外用＋社内用）';
+ $('#xbody').innerHTML=driveRow()+(xUsed.length?'':`<p class="hint" style="margin:0 0 8px">${xMode==='pdf'?'先方に送る形のPDF（社外用）を書き出します。':'社外用と社内用の2つのファイルを続けて書き出します。'}この見積は外貨を使っていないため、為替レートの確認はありません。</p>`)+(!xUsed.length?'':`<p class="hint" style="margin:0 0 8px">${xMode==='pdf'?'先方に送る形のPDF（社外用）を書き出します。':'社外用と社内用の2つのファイルを続けて書き出します。'}</p><p class="xq">本日（${nowTxt()}）のレート<br>${xUsed.map(c=>`<b class="num">${rateTxt(c,rStd(c))}</b>`).join('<br>')}<br>で書き出して良いですか？</p>
+ <ul class="xd">${xUsed.map(c=>`<li>${c}：三菱UFJ銀行 ${esc(rates.date)} の仲値 ${fmtN(+(ttm(c)*UNIT(c)).toFixed(4))}円 ＋ 上乗せ ${fmtN(+((settings.buffer[c]||0)*UNIT(c)).toFixed(4))}円</li>`).join('')}</ul>${rates.ok?'':'<p class="xw">※最新の三菱UFJレートを確認できていません。日付を確認してください。</p>'}`);
+ $('#xbtns').innerHTML=!xUsed.length?'<button class="pri" data-x="yes">書き出す</button><button data-x="cancel">キャンセル</button>':'<button class="pri" data-x="yes">はい（このまま書き出す）</button><button data-x="no">いいえ（レートを入力する）</button><button data-x="cancel">キャンセル</button>';
+ $('#xdlg').hidden=false;$('#xbtns button').focus()}
+function askManual(){$('#xbody').innerHTML=`<p>計算に使うレートを入力してください。</p>`+(xMode==='pdf'?'<ul class="xd"><li>入力したレートで計算した見積だけをPDFにします</li></ul>':`<ul class="xd"><li>社外用：入力したレートで計算した見積<b>だけ</b>を書き出します（正規レートは入りません）</li><li>社内用：正規レートのシートに、入力したレートのシートを「（手動レート）」として追加します</li></ul>`)+xUsed.map(c=>`<label class="xr"><span>${SYM[c]}${UNIT(c)} =</span><input data-xr="${c}" type="number" inputmode="decimal" step="any" value="${+(rStd(c)*UNIT(c)).toFixed(4)}"><span>円</span></label>`).join('')+'<p class="xw" id="xerr"></p>';
+ $('#xbtns').innerHTML='<button class="pri" data-x="manual">このレートで書き出す</button><button data-x="back">戻る</button><button data-x="cancel">キャンセル</button>';
+ const f=$('#xbody input');f&&(f.focus(),f.select())}
+$('#xdlg').addEventListener('change',e=>{if(e.target.id==='drvOn'){settings.drive.on=e.target.checked;LS.set('mq.settings',settings);renderDriveSet();const r=$('#xbody .xdr');if(r)r.outerHTML=driveRow()}});
+$('#xdlg').addEventListener('click',async e=>{const b=e.target.closest('[data-x]');if(e.target.id==='xdlg'){$('#xdlg').hidden=true;return}if(!b)return;const x=b.dataset.x;
+ if(x==='cancel')$('#xdlg').hidden=true;
+ else if(x==='yes'){await drivePerm();$('#xdlg').hidden=true;runExport(null)}
+ else if(x==='drvchg'){pickDrive().then(()=>{const r=$('#xbody .xdr');if(r)r.outerHTML=driveRow()})}
+ else if(x==='no')askManual();
+ else if(x==='back')askExport();
+ else if(x==='manual'){await drivePerm();const m={};let bad=false;document.querySelectorAll('[data-xr]').forEach(i=>{const v=+i.value;if(!(v>0))bad=true;m[i.dataset.xr]=v/UNIT(i.dataset.xr)});
+  if(bad){$('#xerr').textContent='0より大きい数字を入力してください';return}
+  $('#xdlg').hidden=true;runExport({used:xUsed.slice(),vals:m,R:c=>c==='JPY'?1:(m[c]??rStd(c))})}});
+
+/* ---------- 一覧 ---------- */
+function renderList(){const L=quotes.slice().sort((a,b)=>b.updated-a.updated);
+ $('#list').innerHTML=L.map(x=>{const k=calc(x);return `<li data-id="${x.id}" class="${x.id===curId?'cur':''}"><div><b>${esc(x.title||'（案件名なし）')}</b><span>${esc(x.client||'宛先なし')}・${esc(x.date)}・更新 ${tm(x.updated)}</span></div><span class="num">${fmt(k.total,x.sub)}</span><span class="chip" data-s="${stat(k.m)}">${pct(k.m)}</span>
+ <div class="lb"><button data-act="open">開く</button><button data-act="dup">複製</button><button data-act="del">削除</button></div></li>`}).join('')}
+const openModal=()=>{renderList();$('#modal').hidden=false;$('#bClose').focus()};
+const closeModal=()=>{$('#modal').hidden=true};
+
+/* ---------- イベント ---------- */
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const act=b.dataset.act,q=Q();
+ const cat=b.closest('.cat'),ci=cat?+cat.dataset.ci:-1,rw=b.closest('.row'),ri=rw?+rw.dataset.ri:-1,li=b.closest('#list li');
+ if(act==='addrow'){const rs=q.cats[ci].rows,p=rs[rs.length-1];rs.push(R('','',1,1,'',p?p.pc:q.sub,'',p?p.cc:q.sub));commit(true);const ins=document.querySelectorAll(`.cat[data-ci="${ci}"] .row [data-rf="item"]`);ins[ins.length-1]?.focus()}
+ else if(act==='delrow'){snap();q.cats[ci].rows.splice(ri,1);commit(true);toast('行を削除しました',true)}
+ else if(act==='delcat'){snap();const n=q.cats[ci].name;q.cats.splice(ci,1);commit(true);toast(`「${n}」を削除しました`,true)}
+ else if(act==='up'&&ci>0){[q.cats[ci-1],q.cats[ci]]=[q.cats[ci],q.cats[ci-1]];commit(true)}
+ else if(act==='target'){const r=q.cats[ci].rows[ri],t=targetVal(r,q);if(t!=null){r.price=t;commit(true)}}
+ else if(act==='undo'&&undoSnap){const i=quotes.findIndex(x=>x.id===undoSnap.id);if(i>=0){quotes[i]=JSON.parse(undoSnap.json);curId=undoSnap.id;undoSnap=null;persist();renderAll();$('#toast').classList.remove('on')}}
+ else if(act==='dtlall'){q.cats.forEach(c=>c.detail=b.dataset.v==='1');commit(true);toast(b.dataset.v==='1'?'すべてのカテゴリで詳細ページを作ります':'詳細ページを作らず、1ページ目（トータル）だけにします')}
+ else if(act==='accdel'){settings.accounts.splice(+b.dataset.i,1);LS.set('mq.settings',settings);refreshAcc()}
+
+ else if(li){const id=li.dataset.id;
+  if(act==='open'){curId=id;persist();renderAll();closeModal()}
+  else if(act==='dup'){const o=JSON.parse(JSON.stringify(quotes.find(x=>x.id===id)));o.id=uid();o.title=(o.title||'')+'（コピー）';o.date=today();o.updated=Date.now();o.cats.forEach(c=>{c.id=uid();c.rows.forEach(r=>r.id=uid())});quotes.push(o);curId=o.id;persist();renderAll();closeModal();toast('複製しました')}
+  else if(act==='del'){if(!b.dataset.arm){b.dataset.arm='1';b.textContent='本当に削除する';return}
+   quotes=quotes.filter(x=>x.id!==id);if(!quotes.length)quotes.push(blankQuote());if(!quotes.find(x=>x.id===curId))curId=quotes[0].id;persist();renderAll();renderList()}}
+});
+$('#cats').addEventListener('input',e=>{const el=e.target,cat=el.closest('.cat');if(el.classList.contains('ta'))fitTA(el);if(!cat||el.classList.contains('accsel'))return;const c=Q().cats[+cat.dataset.ci];
+ if(el.dataset.cf)c[el.dataset.cf]=el.type==='checkbox'?el.checked:el.value;else if(el.dataset.rf){c.rows[+el.closest('.row').dataset.ri][el.dataset.rf]=el.value}else return;commit(false)});
+$('#cats').addEventListener('change',e=>{const el=e.target,cat=el.closest('.cat');if(!cat)return;const c=Q().cats[+cat.dataset.ci];
+ if(el.classList.contains('accsel')){if(!el.value)return;c.name=el.value;el.value='';cat.querySelector('.catname').value=c.name;commit(false)}
+ else if(el.dataset.cf==='name')remember(el.value)});
+$('#info').addEventListener('input',e=>{const f=e.target.dataset.f;if(!f)return;const q=Q();
+ if(f==='sub'&&q.discType==='amt'&&+q.disc){q.disc=conv(q.disc,q.sub,e.target.value);$('[data-f="disc"]').value=q.disc;toast(`値引き金額を ${e.target.value} に換算しました`)}
+ q[f]=e.target.value;commit(false)});
+$('#setbox').addEventListener('input',e=>{const el=e.target;if(el.dataset.is)settings.issuer[el.dataset.is]=el.value;else if(el.dataset.ie)settings.issuerEn[el.dataset.ie]=el.value;else if(el.id==='thIn')settings.threshold=+el.value||0;else return;LS.set('mq.settings',settings);refresh()});
+$('#rgrid').addEventListener('input',e=>{const c=e.target.dataset.buf;if(!c)return;settings.buffer[c]=(+e.target.value||0)/UNIT(c);LS.set('mq.settings',settings);refresh()});
+
+$('#bRate').addEventListener('click',fetchRates);
+$('#bAddCat').addEventListener('click',()=>{const q=Q();q.cats.push({id:uid(),name:'新しいカテゴリ',rows:[R('','',1,1,'',q.sub,'',q.sub)]});commit(true);const ns=document.querySelectorAll('.catname');ns[ns.length-1]?.select();ns[ns.length-1]?.scrollIntoView({block:'center'})});
+$('#bNew').addEventListener('click',()=>{const n=blankQuote();quotes.push(n);curId=n.id;persist();renderAll();window.scrollTo(0,0);toast('新しい見積を作りました')});
+$('#bList').addEventListener('click',openModal);$('#bClose').addEventListener('click',closeModal);
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#modal').hidden)closeModal();$('#xdlg').hidden=true;$('#pv').hidden=true;$('#gd').hidden=true}});
+$('#bX').addEventListener('click',()=>askExport('xlsx'));
+$('#bP').addEventListener('click',()=>askExport('pdf'));
+$('#bV').addEventListener('click',preview);
+$('#bImp2').addEventListener('click',()=>$('#impFile').click());
+$('#impFile').addEventListener('change',e=>{const f=e.target.files[0];if(f)importExcel(f);e.target.value=''});
+$('#imp').addEventListener('click',e=>{const id=e.target.id;if(id==='imp'||id==='impClose'||id==='impCancel'||id==='impClose2')$('#imp').hidden=true;else if(id==='impGo')doImport()});
+$('#setbox').addEventListener('change',e=>{if(e.target.id==='drvOn2'){settings.drive.on=e.target.checked;LS.set('mq.settings',settings);renderDriveSet()}});
+$('#setbox').addEventListener('click',e=>{if(e.target.id==='drvPick')pickDrive()});
+$('#gdClose').addEventListener('click',()=>{$('#gd').hidden=true;if(gdDone){gdDone();gdDone=null}});
+$('#gdSearch').addEventListener('click',()=>gdSearch($('#gdq').value.trim()));
+$('#gdq').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();gdSearch(e.target.value.trim())}});
+$('#gdlist').addEventListener('click',e=>{const b=e.target.closest('[data-gid]');if(b)gdChoose(b.dataset.gid,b.dataset.gname)});
+$('#gdMake').addEventListener('click',async()=>{const n=$('#gdnew').value.trim();if(!n){toast('フォルダ名を入力してください');return}
+ try{const r=payloadOf(await mcpNS.callTool('Google Drive','create_file',{title:n,contentMimeType:'application/vnd.google-apps.folder'}));const id=r&&(r.id||(r.file&&r.file.id));if(!id)throw new Error('IDを取得できません');gdChoose(id,n)}catch(e){toast('フォルダを作れませんでした（'+(e.code||e.message||e)+'）')}});
+$('#pvClose').addEventListener('click',()=>{$('#pv').hidden=true});
+$('#pvPdf').addEventListener('click',()=>{$('#pv').hidden=true;askExport('pdf')});
+$('#bExp').addEventListener('click',()=>saveFile(`見積バックアップ_${today()}.json`,new Blob([JSON.stringify({app:'multi-currency-quote',v:1,quotes,settings},null,1)],{type:'application/json'})));
+$('#bImpB').addEventListener('click',()=>$('#bImp').click());
+$('#bImp').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());const L=Array.isArray(j)?j:j.quotes;if(!Array.isArray(L))throw 0;let n=0;
+ L.forEach(x=>{if(!x||!x.id||!Array.isArray(x.cats))return;const i=quotes.findIndex(y=>y.id===x.id);if(i>=0)quotes[i]=x;else quotes.push(x);n++});if(j.settings&&j.settings.issuer)settings=j.settings,LS.set('mq.settings',settings);
+ persist();renderAll();renderList();toast(`${n}件の見積を読み込みました`)}catch(err){toast('読み込めませんでした。バックアップのJSONを選んでください')}e.target.value=''});
+
+/* ---------- アプリ化（PWA） ---------- */
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent),standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
+let dp=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;$('#bInst').hidden=false});
+window.addEventListener('appinstalled',()=>{$('#bInst').hidden=true;toast('アプリとして追加しました')});
+$('#bInst').addEventListener('click',async()=>{if(dp){dp.prompt();try{await dp.userChoice}catch(e){}dp=null;$('#bInst').hidden=true}else toast('Safariの共有ボタン →「ホーム画面に追加」で追加できます')});
+if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js').then(()=>{hosted=true;if(isIOS&&!standalone)$('#bInst').hidden=false;renderRates()}).catch(()=>{})}catch(e){}}
+window.addEventListener('online',fetchRates);
+
+renderAll();persist();fetchRates();
+}
+</script>
+</body>
+</html>
