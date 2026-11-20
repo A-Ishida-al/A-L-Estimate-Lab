@@ -28,9 +28,17 @@ jobs:
           t = re.sub(r'(?i)<tr\b[^>]*>', '\n|', t)
           t = html.unescape(re.sub(r'<[^>]+>', ' ', t))
           t = re.sub(r'[ \t\u3000\xa0]+', ' ', t)
-          m = re.search(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', t)
           jst = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
-          date = f'{int(m[1]):04d}-{int(m[2]):02d}-{int(m[3]):02d}' if m else jst.strftime('%Y-%m-%d')
+          ds = []
+          for m in re.finditer(r'(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日', t):
+              try:
+                  d = datetime.date(int(m[1]), int(m[2]), int(m[3]))
+              except ValueError:
+                  continue
+              if d <= jst.date():
+                  ds.append(d)
+          # ページ内の古いお知らせ等の日付ではなく、いちばん新しい日付（＝公表日）を使う
+          date = max(ds).isoformat() if ds else jst.strftime('%Y-%m-%d')
           LIM = {'USD': (80, 300), 'EUR': (80, 350), 'KRW': (0.03, 0.5), 'CNY': (8, 60)}
           try:
               prev = json.load(open('rates.json', encoding='utf-8'))

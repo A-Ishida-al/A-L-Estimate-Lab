@@ -491,7 +491,7 @@ function snap(){undoSnap={id:curId,json:JSON.stringify(Q())}}
 /* ---------- 為替 ---------- */
 async function getJSON(u){const ac=new AbortController(),t=setTimeout(()=>ac.abort(),7000);try{const r=await fetch(u,{signal:ac.signal});if(!r.ok)throw new Error(r.status);return await r.json()}finally{clearTimeout(t)}}
 async function fetchRates(){rates.loading=true;renderRates();let got=false;
- try{const j=await getJSON('rates.json?t='+Date.now()),r=j&&j.rates;
+ try{const t='?t='+Date.now();let j=null;try{j=await getJSON('rates.json'+t)}catch(e){}if(!(j&&j.rates))j=await getJSON('https://a-ishida-al.github.io/A-L-Estimate-Lab/rates.json'+t);const r=j&&j.rates;
   if(r&&CUR.slice(1).every(c=>r[c]&&+r[c].tts>0&&+r[c].ttb>0)){const v={};CUR.slice(1).forEach(c=>v[c]={tts:+r[c].tts,ttb:+r[c].ttb});
    rates.v=v;Object.assign(rates,{date:j.date||'',at:Date.now(),kind:'mufg',stale:Array.isArray(j.stale)?j.stale:[]});got=true}}catch(e){}
  rates.loading=false;rates.ok=got;LS.set('mq.rates2',{v:rates.v,date:rates.date,at:rates.at,kind:rates.kind,stale:rates.stale});renderRates();refresh()}
@@ -1071,7 +1071,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.ser
 window.addEventListener('online',fetchRates);
 
 /* 自動更新：公開版（https）だけで動く。新しい版が出ていたら、作業中でないときだけ切り替える。作業中なら次に開いたときに新しい版になる */
-const APP_VER='mq-v28';
+const APP_VER='mq-v29';
 {const IDLE=5*60*1000;let lastAct=Date.now(),newVer=null,timer=null;
  ['pointerdown','keydown','input','change','wheel','touchstart'].forEach(t=>document.addEventListener(t,()=>{lastAct=Date.now()},{capture:true,passive:true}));
  const allSaved=()=>!conflict&&!(CLOUD&&(pendingIds.size||saving));
