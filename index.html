@@ -114,7 +114,9 @@ details summary{font-weight:700;font-size:20px;cursor:pointer;min-height:44px;di
 details[open] summary{margin-bottom:14px}
 footer{padding:0 max(5vw,16px) 40px;color:var(--mut);font-size:13px}
 #modal{position:fixed;inset:0;z-index:50;background:rgba(4,20,13,.55);display:grid;place-items:center;padding:16px}
-#modal[hidden],#xdlg[hidden],#pv[hidden],#gd[hidden],#imp[hidden]{display:none}
+#modal[hidden],#xdlg[hidden],#pv[hidden],#gd[hidden],#imp[hidden],#conf[hidden]{display:none}
+#conf{position:fixed;left:12px;right:12px;top:12px;z-index:70;background:var(--red);color:#fff;border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.3)}
+#conf span{display:block;font-size:14px;opacity:.95}#conf>div:first-child{flex:1 1 300px}.cb{display:flex;flex-wrap:wrap;gap:8px}#conf button:not(.pri){background:transparent;color:#fff;border-color:rgba(255,255,255,.7)}#conf .pri{background:#fff;color:var(--red);border-color:#fff}
 #imp{position:fixed;inset:0;z-index:57;background:rgba(4,20,13,.55);display:grid;place-items:center;padding:16px}
 .isl{list-style:none;margin:8px 0;padding:0;max-height:52vh;overflow:auto}.isl li{display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-top:1px solid var(--line)}
 .isl li input{width:20px;height:20px;min-height:20px;margin-top:3px;accent-color:var(--em);flex:none}.isl li span{display:block;font-size:12px;color:var(--mut)}.isl .tag2{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;background:light-dark(#dff5ea,#0e3a29);color:var(--emd);margin-left:6px}
@@ -122,6 +124,8 @@ footer{padding:0 max(5vw,16px) 40px;color:var(--mut);font-size:13px}
 #gd{position:fixed;inset:0;z-index:60;background:rgba(4,20,13,.55);display:grid;place-items:center;padding:16px}
 .gdl{list-style:none;margin:12px 0 0;padding:0;max-height:50vh;overflow:auto}.gdl li{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)}
 .gdl li span{display:block;font-size:12px;color:var(--mut)}.gdl li button{min-height:38px;flex:none}
+.xfn{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin:0 0 4px;font-size:14px}.xfn .lb{font-weight:700;width:100%}.xfn .fx{font-weight:700;background:var(--soft);border-radius:8px;padding:9px 10px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}.xfn input{flex:1 1 160px}
+.xfp{margin:0 0 10px;word-break:break-all}
 .xdr{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;background:var(--soft);border-radius:10px;padding:8px 12px;margin:0 0 12px;font-size:14px}.xdr .dst{flex:1 1 160px}.xdr button{min-height:36px}.xdr .w{color:var(--redink)}
 .ck{display:inline-flex;gap:8px;align-items:center;font-weight:600}.ck input{width:20px;min-height:20px;height:20px;accent-color:var(--em)}
 #pv{position:fixed;inset:0;z-index:58;background:#525659;display:flex;flex-direction:column}
@@ -283,6 +287,8 @@ footer{padding:0 max(5vw,16px) 40px;color:var(--mut);font-size:13px}
   <div class="xbtns" id="impBtns"></div>
  </div>
 </div>
+<div id="conf" hidden role="alertdialog" aria-live="assertive"><div><b>この見積が、別のタブ（ウィンドウ）で先に変更されました。</b><span>このタブの変更はまだ保存していません。どちらにしますか？</span></div>
+ <div class="cb"><button id="cfLatest" class="pri">最新の内容を表示する</button><button id="cfMine">このタブの内容を別の見積として残す</button></div></div>
 <div id="toast" role="status"></div>
 
 <script>
@@ -408,8 +414,27 @@ const fitAll=()=>document.querySelectorAll('.ta').forEach(fitTA);
 function renderAll(){fillInfo();fillSettings();renderRates();renderCats();refreshAcc();refresh();setTimeout(fitAll,0)}
 
 /* ---------- 保存 ---------- */
-function persist(){const ok=LS.set('mq.quotes',quotes)&&LS.set('mq.cur',curId);$('#saved').textContent=ok?`保存済み ${tm(Date.now())}`:'この環境では保存できません'}
+/* 複数タブ・ウィンドウ対策：保存のたびに保存済みの内容と合わせる（他のタブで変えた別の見積を消さない）。
+   同じ見積が他のタブで先に変更されていたら、上書きせずに警告を出す */
+let knownIds=new Set(quotes.map(x=>x.id)),deletedIds=new Set(),conflict=false;
+function mergeQuotes(){const st=LS.get('mq.quotes',null);if(!Array.isArray(st))return;const sm=new Map(st.map(x=>[x.id,x])),out=[];
+ for(const q of quotes){const s=sm.get(q.id);
+  if(s){out.push(q.id!==curId&&(+s.updated||0)>(+q.updated||0)?s:q);sm.delete(q.id)}
+  else if(!(knownIds.has(q.id)&&q.id!==curId))out.push(q)}
+ for(const x of sm.values())if(!deletedIds.has(x.id))out.push(x);
+ quotes=out;if(!quotes.find(x=>x.id===curId)&&quotes.length)curId=quotes[0].id}
+function persist(){if(conflict){$('#saved').textContent='未保存（他のタブとの競合を解決してください）';return}
+ mergeQuotes();const ok=LS.set('mq.quotes',quotes)&&LS.set('mq.cur',curId);knownIds=new Set(quotes.map(x=>x.id));
+ $('#saved').textContent=ok?`保存済み ${tm(Date.now())}`:'この環境では保存できません'}
 function commit(struct){Q().updated=Date.now();persist();if(struct){renderCats();fitAll()}refresh()}
+function showConflict(){conflict=true;$('#conf').hidden=false;$('#saved').textContent='未保存（他のタブとの競合を解決してください）'}
+window.addEventListener('storage',e=>{if(e.key!=='mq.quotes')return;const st=LS.get('mq.quotes',[]);if(!Array.isArray(st))return;
+ const s=st.find(x=>x.id===curId),me=Q();const stale=s&&me&&(+s.updated||0)>(+me.updated||0)&&JSON.stringify(s)!==JSON.stringify(me);
+ mergeQuotes();knownIds=new Set(quotes.map(x=>x.id));if(stale)showConflict();if(!$('#modal').hidden)renderList()});
+function resolveConflict(keepMine){const st=LS.get('mq.quotes',[]),s=st.find(x=>x.id===curId);conflict=false;$('#conf').hidden=true;
+ if(keepMine){const mine=JSON.parse(JSON.stringify(Q()));mine.id=uid();mine.title=(mine.title||'')+'（別タブ）';mine.updated=Date.now();
+  const i=quotes.findIndex(x=>x.id===curId);if(s&&i>=0)quotes[i]=s;quotes.push(mine);curId=mine.id;persist();renderAll();toast('このタブの内容を「（別タブ）」として別に保存しました')}
+ else{const i=quotes.findIndex(x=>x.id===curId);if(s&&i>=0)quotes[i]=s;persist();renderAll();toast('最新の内容を表示しました')}}
 let tt;function toast(msg,undo){const t=$('#toast');t.innerHTML=`<span>${esc(msg)}</span>${undo?'<button data-act="undo">元に戻す</button>':''}`;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),undo?6000:3000)}
 function snap(){undoSnap={id:curId,json:JSON.stringify(Q())}}
 
@@ -549,14 +574,28 @@ async function saveFile(name,blob,multi){
   if(dl){try{await dl.save({filename:name,data:blob});toast(`書き出しました：${name}`);return true}catch(e){toast(e&&e.code==='declined'?'保存をキャンセルしました':'保存できませんでした（'+(e&&e.code||'error')+'）');return false}}}
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
  toast(`書き出しました：${name}`);if(multi)await new Promise(r=>setTimeout(r,600));return true}
+const yymmdd=d=>{const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})$/)||today().match(/^(\d{4})-(\d{2})-(\d{2})$/);return m[1].slice(2)+m[2]+m[3]};
+/* ファイル名のルール：「YYMMDD 案件名」＋任意の追記。同じ名前があれば _v2, _v3… */
+const fixedName=q=>`${yymmdd(q.date)} ${safe(q.title)||'案件名未設定'}`;
+const baseName=q=>fixedName(q)+(String(q.fileNote||'').trim()?' '+safe(String(q.fileNote).trim()):'');
+const withV=(p,k)=>p.base+(k>1?`_v${k}`:'')+p.tail+p.ext;
+async function nameExists(name){const d=settings.drive,m=driveMode();
+ if(d.on&&m&&destName()){
+  if(m==='fs'&&fsHandle){try{await fsHandle.getFileHandle(name);return true}catch(e){return false}}
+  if(m==='mcp'&&d.mcp){const qq=`title = '${name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}' and trashed = false and parentId = '${d.mcp.id}'`;
+   try{const r=payloadOf(await mcpNS.callTool('Google Drive','search_files',{query:qq,pageSize:1,excludeContentSnippets:true}));return !!(r&&r.files&&r.files.length)}catch(e){return false}}}
+ return (LS.get('mq.exported',[])||[]).includes(name)}
+async function pickVersion(parts){for(let k=1;k<100;k++){let hit=false;for(const p of parts){if(await nameExists(withV(p,k))){hit=true;break}}if(!hit)return k}return 100}
+function logExported(name){const L=LS.get('mq.exported',[])||[];if(!L.includes(name)){L.push(name);LS.set('mq.exported',L.slice(-500))}}
 const safe=s=>String(s||'').replace(/[\\\/?%*:|"<>]/g,'_').slice(0,60);
 async function exportBoth(man){const btn=$('#bX'),old=btn.textContent;btn.disabled=true;btn.textContent='作成中…';
  try{await loadXL();const q=Q();
+  const parts=[{base:baseName(q),tail:'',ext:'.xlsx'},{base:baseName(q),tail:' 社内用'+(man?'_手動レート':''),ext:'.xlsx'}],ver=await pickVersion(parts);
   for(const internal of [false,true]){const wb=new ExcelJS.Workbook();wb.creator=settings.issuer.company||'';wb.calcProperties.fullCalcOnLoad=true;
    /* 社外用は手動レートのシートだけ（先方に2種類の見積を渡さない）。社内用は正規＋手動を併記 */
    if(man&&!internal)buildInto(wb,false,man.R,'',man);else{buildInto(wb,internal,rStd,'',null);if(man)buildInto(wb,internal,man.R,'（手動レート）',man)}
    const buf=await wb.xlsx.writeBuffer();
-   const ok=await saveOut(`${safe(q.title)||'見積'}_${q.date}_${internal?'社内用':'社外用'}${man&&internal?'_手動レート併記':''}.xlsx`,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),true);
+   const ok=await saveOut(withV(parts[internal?1:0],ver),new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),true);
    if(ok===false)break}
   }
  catch(e){toast('Excelを作れませんでした：'+(e.message||e))}finally{btn.disabled=false;btn.textContent=old}}
@@ -624,7 +663,7 @@ async function buildPDF(R){const{ctx,pages}=await buildPages(R),{host,box}=pdfHo
   return pdf.output('blob')}
  finally{host.remove()}}
 async function exportPDF(man){const btn=$('#bP'),old=btn.textContent;btn.disabled=true;btn.textContent='PDF作成中…';
- try{await loadPDFLibs();const q=Q(),blob=await buildPDF(man?man.R:rStd);await saveOut(`${safe(q.title)||'見積'}_${q.date}.pdf`,blob)}
+ try{await loadPDFLibs();const q=Q(),blob=await buildPDF(man?man.R:rStd);const p={base:baseName(q),tail:'',ext:'.pdf'};await saveOut(withV(p,await pickVersion([p])),blob)}
  catch(e){toast('PDFを作れませんでした：'+(e.message||e))}finally{btn.disabled=false;btn.textContent=old}}
 /* ---------- Excel読み込み（過去の見積から作成） ---------- */
 const cv0=v=>{if(v==null)return null;if(v instanceof Date)return v;if(typeof v==='object'){if('result' in v)return cv0(v.result);if(v.richText)return v.richText.map(t=>t.text).join('');if('text' in v&&typeof v.text==='string')return v.text;return null}return v};
@@ -709,6 +748,9 @@ const idb={open(){return new Promise((ok,ng)=>{const r=indexedDB.open('estilab',
  async get(k){try{const d=await this.open();return await new Promise(ok=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>ok(q.result);q.onerror=()=>ok(null)})}catch(e){return null}},
  async set(k,v){try{const d=await this.open();return await new Promise(ok=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>ok(true);t.onerror=()=>ok(false)})}catch(e){return false}}};
 const destName=()=>{const m=driveMode(),d=settings.drive;return m==='mcp'?(d.mcp&&d.mcp.name)||'':m==='fs'?(fsHandle&&fsHandle.name)||'':''};
+function fileRow(){const q=Q();return `<div class="xfn"><span class="lb">ファイル名</span><span class="fx">${esc(fixedName(q))}</span><input id="fnNote" value="${esc(q.fileNote||'')}" placeholder="自由入力（任意）例：追加分" aria-label="ファイル名の追記"></div>
+ <p class="hint xfp" id="fnPrev">${esc(fnPreview())}</p>${String(q.title||'').trim()?'':'<p class="xw">案件名が空欄です。「見積情報」で案件名を入れてください。</p>'}`}
+function fnPreview(){const q=Q(),b=baseName(q);return xMode==='pdf'?`保存名：${b}.pdf（同じ名前があれば _v2…）`:`保存名：${b}.xlsx ／ ${b} 社内用.xlsx（同じ名前があれば _v2…）`}
 function driveRow(){const m=driveMode(),d=settings.drive;
  if(!m)return `<div class="xdr"><span>Googleドライブ保存：この環境では使えません（端末にダウンロードします）</span></div>`;
  const nm=destName();
@@ -735,13 +777,13 @@ async function driveSave(name,blob){const m=driveMode(),d=settings.drive;
  if(m==='mcp'){if(!d.mcp)throw new Error('保存先が未設定');const input={title:name,base64Content:await b64(blob),contentMimeType:blob.type||'application/octet-stream',disableConversionToGoogleType:true};if(d.mcp.id!=='root')input.parentId=d.mcp.id;
   await mcpNS.callTool('Google Drive','create_file',input);return d.mcp.name}
  if(m==='fs'){if(!fsHandle)throw new Error('保存先が未設定');if(await fsHandle.queryPermission({mode:'readwrite'})!=='granted')throw new Error('フォルダへの書き込みが許可されていません');
-  let fn=name,i=2;const dot=name.lastIndexOf('.');for(;;){try{await fsHandle.getFileHandle(fn);fn=name.slice(0,dot)+`(${i++})`+name.slice(dot)}catch(e){break}}
+  let fn=name,i=2;const dot=name.lastIndexOf('.');for(;;){try{await fsHandle.getFileHandle(fn);fn=name.slice(0,dot)+`_v${i++}`+name.slice(dot)}catch(e){break}}
   const fh=await fsHandle.getFileHandle(fn,{create:true}),w=await fh.createWritable();await w.write(blob);await w.close();return fsHandle.name}
  throw new Error('この環境では使えません')}
 async function saveOut(name,blob,multi){const d=settings.drive;
  if(d.on&&driveMode()&&destName()){try{const where=await driveSave(name,blob);toast(`Googleドライブ「${where}」に保存しました：${name}`);if(multi)await new Promise(r=>setTimeout(r,400));return true}
   catch(e){toast('ドライブに保存できませんでした（'+(e.code||e.message||e)+'）。ダウンロードに切り替えます');await new Promise(r=>setTimeout(r,1500))}}
- return saveFile(name,blob,multi)}
+ const r=await saveFile(name,blob,multi);if(r!==false)logExported(name);return r}
 (async()=>{fsHandle=await idb.get('dir').catch(()=>null)||null;
  if(window.claude&&claude.use){try{mcpNS=await claude.use('mcp')}catch(e){mcpNS=null}}
  renderDriveSet()})();
@@ -769,13 +811,14 @@ const nowTxt=()=>{const d=new Date();return `${d.getMonth()+1}月${d.getDate()}�
 let xMode='xlsx';const runExport=man=>xMode==='pdf'?exportPDF(man):exportBoth(man);
 function askExport(mode){if(mode)xMode=mode;xUsed=usedCur(Q());
  $('#xh').textContent=xMode==='pdf'?'書き出し前の確認（PDF・社外用）':'書き出し前の確認（社外用＋社内用）';
- $('#xbody').innerHTML=driveRow()+(xUsed.length?'':`<p class="hint" style="margin:0 0 8px">${xMode==='pdf'?'先方に送る形のPDF（社外用）を書き出します。':'社外用と社内用の2つのファイルを続けて書き出します。'}この見積は外貨を使っていないため、為替レートの確認はありません。</p>`)+(!xUsed.length?'':`<p class="hint" style="margin:0 0 8px">${xMode==='pdf'?'先方に送る形のPDF（社外用）を書き出します。':'社外用と社内用の2つのファイルを続けて書き出します。'}</p><p class="xq">本日（${nowTxt()}）のレート<br>${xUsed.map(c=>`<b class="num">${rateTxt(c,rStd(c))}</b>`).join('<br>')}<br>で書き出して良いですか？</p>
+ $('#xbody').innerHTML=fileRow()+driveRow()+(xUsed.length?'':`<p class="hint" style="margin:0 0 8px">${xMode==='pdf'?'先方に送る形のPDF（社外用）を書き出します。':'社外用と社内用の2つのファイルを続けて書き出します。'}この見積は外貨を使っていないため、為替レートの確認はありません。</p>`)+(!xUsed.length?'':`<p class="hint" style="margin:0 0 8px">${xMode==='pdf'?'先方に送る形のPDF（社外用）を書き出します。':'社外用と社内用の2つのファイルを続けて書き出します。'}</p><p class="xq">本日（${nowTxt()}）のレート<br>${xUsed.map(c=>`<b class="num">${rateTxt(c,rStd(c))}</b>`).join('<br>')}<br>で書き出して良いですか？</p>
  <ul class="xd">${xUsed.map(c=>`<li>${c}：三菱UFJ銀行 ${esc(rates.date)} の仲値 ${fmtN(+(ttm(c)*UNIT(c)).toFixed(4))}円 ＋ 上乗せ ${fmtN(+((settings.buffer[c]||0)*UNIT(c)).toFixed(4))}円</li>`).join('')}</ul>${rates.ok?'':'<p class="xw">※最新の三菱UFJレートを確認できていません。日付を確認してください。</p>'}`);
  $('#xbtns').innerHTML=!xUsed.length?'<button class="pri" data-x="yes">書き出す</button><button data-x="cancel">キャンセル</button>':'<button class="pri" data-x="yes">はい（このまま書き出す）</button><button data-x="no">いいえ（レートを入力する）</button><button data-x="cancel">キャンセル</button>';
  $('#xdlg').hidden=false;$('#xbtns button').focus()}
 function askManual(){$('#xbody').innerHTML=`<p>計算に使うレートを入力してください。</p>`+(xMode==='pdf'?'<ul class="xd"><li>入力したレートで計算した見積だけをPDFにします</li></ul>':`<ul class="xd"><li>社外用：入力したレートで計算した見積<b>だけ</b>を書き出します（正規レートは入りません）</li><li>社内用：正規レートのシートに、入力したレートのシートを「（手動レート）」として追加します</li></ul>`)+xUsed.map(c=>`<label class="xr"><span>${SYM[c]}${UNIT(c)} =</span><input data-xr="${c}" type="number" inputmode="decimal" step="any" value="${+(rStd(c)*UNIT(c)).toFixed(4)}"><span>円</span></label>`).join('')+'<p class="xw" id="xerr"></p>';
  $('#xbtns').innerHTML='<button class="pri" data-x="manual">このレートで書き出す</button><button data-x="back">戻る</button><button data-x="cancel">キャンセル</button>';
  const f=$('#xbody input');f&&(f.focus(),f.select())}
+$('#xdlg').addEventListener('input',e=>{if(e.target.id==='fnNote'){const q=Q();q.fileNote=e.target.value;q.updated=Date.now();persist();$('#fnPrev').textContent=fnPreview()}});
 $('#xdlg').addEventListener('change',e=>{if(e.target.id==='drvOn'){settings.drive.on=e.target.checked;LS.set('mq.settings',settings);renderDriveSet();const r=$('#xbody .xdr');if(r)r.outerHTML=driveRow()}});
 $('#xdlg').addEventListener('click',async e=>{const b=e.target.closest('[data-x]');if(e.target.id==='xdlg'){$('#xdlg').hidden=true;return}if(!b)return;const x=b.dataset.x;
  if(x==='cancel')$('#xdlg').hidden=true;
@@ -802,7 +845,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
  else if(act==='delcat'){snap();const n=q.cats[ci].name;q.cats.splice(ci,1);commit(true);toast(`「${n}」を削除しました`,true)}
  else if(act==='up'&&ci>0){[q.cats[ci-1],q.cats[ci]]=[q.cats[ci],q.cats[ci-1]];commit(true)}
  else if(act==='target'){const r=q.cats[ci].rows[ri],t=targetVal(r,q);if(t!=null){r.price=t;commit(true)}}
- else if(act==='undo'&&undoSnap){const i=quotes.findIndex(x=>x.id===undoSnap.id);if(i>=0){quotes[i]=JSON.parse(undoSnap.json);curId=undoSnap.id;undoSnap=null;persist();renderAll();$('#toast').classList.remove('on')}}
+ else if(act==='undo'&&undoSnap){const i=quotes.findIndex(x=>x.id===undoSnap.id);if(i>=0){quotes[i]=JSON.parse(undoSnap.json);quotes[i].updated=Date.now();curId=undoSnap.id;undoSnap=null;persist();renderAll();$('#toast').classList.remove('on')}}
  else if(act==='dtlall'){q.cats.forEach(c=>c.detail=b.dataset.v==='1');commit(true);toast(b.dataset.v==='1'?'すべてのカテゴリで詳細ページを作ります':'詳細ページを作らず、1ページ目（トータル）だけにします')}
  else if(act==='accdel'){settings.accounts.splice(+b.dataset.i,1);LS.set('mq.settings',settings);refreshAcc()}
 
@@ -810,7 +853,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
   if(act==='open'){curId=id;persist();renderAll();closeModal()}
   else if(act==='dup'){const o=JSON.parse(JSON.stringify(quotes.find(x=>x.id===id)));o.id=uid();o.title=(o.title||'')+'（コピー）';o.date=today();o.updated=Date.now();o.cats.forEach(c=>{c.id=uid();c.rows.forEach(r=>r.id=uid())});quotes.push(o);curId=o.id;persist();renderAll();closeModal();toast('複製しました')}
   else if(act==='del'){if(!b.dataset.arm){b.dataset.arm='1';b.textContent='本当に削除する';return}
-   quotes=quotes.filter(x=>x.id!==id);if(!quotes.length)quotes.push(blankQuote());if(!quotes.find(x=>x.id===curId))curId=quotes[0].id;persist();renderAll();renderList()}}
+   deletedIds.add(id);quotes=quotes.filter(x=>x.id!==id);if(!quotes.length)quotes.push(blankQuote());if(!quotes.find(x=>x.id===curId))curId=quotes[0].id;persist();renderAll();renderList()}}
 });
 $('#cats').addEventListener('input',e=>{const el=e.target,cat=el.closest('.cat');if(el.classList.contains('ta'))fitTA(el);if(!cat||el.classList.contains('accsel'))return;const c=Q().cats[+cat.dataset.ci];
  if(el.dataset.cf)c[el.dataset.cf]=el.type==='checkbox'?el.checked:el.value;else if(el.dataset.rf){c.rows[+el.closest('.row').dataset.ri][el.dataset.rf]=el.value}else return;commit(false)});
@@ -832,6 +875,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#modal').hid
 $('#bX').addEventListener('click',()=>askExport('xlsx'));
 $('#bP').addEventListener('click',()=>askExport('pdf'));
 $('#bV').addEventListener('click',preview);
+$('#cfLatest').addEventListener('click',()=>resolveConflict(false));$('#cfMine').addEventListener('click',()=>resolveConflict(true));
 $('#bImp2').addEventListener('click',()=>$('#impFile').click());
 $('#impFile').addEventListener('change',e=>{const f=e.target.files[0];if(f)importExcel(f);e.target.value=''});
 $('#imp').addEventListener('click',e=>{const id=e.target.id;if(id==='imp'||id==='impClose'||id==='impCancel'||id==='impClose2')$('#imp').hidden=true;else if(id==='impGo')doImport()});
@@ -848,7 +892,7 @@ $('#pvPdf').addEventListener('click',()=>{$('#pv').hidden=true;askExport('pdf')}
 $('#bExp').addEventListener('click',()=>saveFile(`見積バックアップ_${today()}.json`,new Blob([JSON.stringify({app:'multi-currency-quote',v:1,quotes,settings},null,1)],{type:'application/json'})));
 $('#bImpB').addEventListener('click',()=>$('#bImp').click());
 $('#bImp').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());const L=Array.isArray(j)?j:j.quotes;if(!Array.isArray(L))throw 0;let n=0;
- L.forEach(x=>{if(!x||!x.id||!Array.isArray(x.cats))return;const i=quotes.findIndex(y=>y.id===x.id);if(i>=0)quotes[i]=x;else quotes.push(x);n++});if(j.settings&&j.settings.issuer)settings=j.settings,LS.set('mq.settings',settings);
+ L.forEach(x=>{if(!x||!x.id||!Array.isArray(x.cats))return;const i=quotes.findIndex(y=>y.id===x.id);x.updated=Date.now();if(i>=0)quotes[i]=x;else quotes.push(x);n++});if(j.settings&&j.settings.issuer)settings=j.settings,LS.set('mq.settings',settings);
  persist();renderAll();renderList();toast(`${n}件の見積を読み込みました`)}catch(err){toast('読み込めませんでした。バックアップのJSONを選んでください')}e.target.value=''});
 
 /* ---------- アプリ化（PWA） ---------- */
