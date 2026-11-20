@@ -60,15 +60,17 @@ select{padding-inline:6px}
 #alerts:not(:empty){background:var(--redsoft);color:var(--redink);padding:14px max(5vw,16px)}
 #alerts b{display:block}#alerts ul{margin:6px 0 0;padding-left:20px}
 .band{padding:clamp(22px,3.5vw,44px) max(5vw,16px)}
-.top2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start;padding-bottom:16px}
+.topwrap{padding-bottom:16px}
+.top2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+.topwrap.folded .top2{display:none}
+.foldbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:center;margin-top:12px}
+.topwrap.folded .foldbar{justify-content:space-between;margin-top:0;padding:10px 16px;border:1px solid var(--line,rgba(255,255,255,.12));border-radius:14px}
+.foldbar .sm{font-weight:700;font-size:15px;color:var(--mut)}
+.topwrap:not(.folded) .foldbar .sm{display:none}
+#bFold{min-height:44px;padding:8px 22px;font-weight:700;color:var(--emd);white-space:nowrap}
 .top2 #info .fg{grid-template-columns:repeat(2,minmax(0,1fr))}
 .sumbox{padding:0;overflow:hidden}
-.sumbox>summary{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;padding:12px 16px;font-size:16px;font-weight:700;min-height:48px;margin:0!important;list-style:none}
-.sumbox>summary::-webkit-details-marker{display:none}
-.sumbox>summary .sm{font-weight:600;font-size:14px;color:var(--mut);flex:1 1 auto}
-.sumbox>summary .tgl::after{content:'折りたたむ ▲';font-size:13px;color:var(--emd);white-space:nowrap}
-.sumbox:not([open])>summary .tgl::after{content:'開く ▼'}
-.sumbox[open]>summary .sm{display:none}
+.sumbox>.sumhd{display:flex;align-items:center;padding:12px 16px;font-size:16px;font-weight:700;min-height:48px}
 .sumbox .hero{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .sumbox .lab,.sumbox .figs{padding:16px 18px}
 .sumbox .big{font-size:clamp(44px,5.2vw,68px);margin:4px 0 12px}
@@ -196,14 +198,15 @@ body.ro input[readonly],body.ro textarea[readonly]{background:var(--soft)}
   <button id="bInst" hidden>アプリとして追加</button><button id="bNew">新規</button><button id="bList">保存一覧</button><button id="bImp2" title="過去に作った見積のExcelファイルを読み込んで、新しい見積を作ります">過去の見積を読み込む</button><input id="impFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
   <button id="bX" class="pri">書き出し</button><button id="bV">プレビュー</button>
  </nav>
- <div class="minibar" id="miniBar"><span class="mi">粗利率 <b class="chip" id="mbPct">—</b></span><span class="mi">合計（税込）<b class="num" id="mbTot"></b></span><span class="mi">粗利<b class="num" id="mbPr"></b></span><button type="button" id="mbToggle">内訳・レートを表示</button></div>
+ <div class="minibar" id="miniBar"><span class="mi">粗利率 <b class="chip" id="mbPct">—</b></span><span class="mi">合計（税込）<b class="num" id="mbTot"></b></span><span class="mi">粗利<b class="num" id="mbPr"></b></span><button type="button" id="mbToggle">粗利・見積情報を開く</button></div>
 </header>
 <main>
 <div id="roBar" hidden><b><span id="roWho"></span>の見積です（閲覧のみ）</b><span>編集はできませんが、数字や項目の選択・コピー、書き出しはできます。カテゴリ右上の ⧉ でカテゴリごとコピーし、自分の見積に貼り付けられます。</span><button class="pri" data-act="dupcur">複製して自分の見積にする</button></div>
-<section class="band top2">
+<section class="band topwrap" id="topWrap">
+<div class="top2" id="topGrid">
  <div class="lcol">
-  <details class="card sumbox" id="sumBox" open>
-   <summary><span class="st">粗利・合計・為替レート</span><span class="sm" id="sumMini"></span><span class="tgl" aria-hidden="true"></span></summary>
+  <div class="card sumbox" id="sumBox">
+   <div class="sumhd"><span class="st">粗利・合計・為替レート</span></div>
    <section class="hero" id="hero" data-s="ok" aria-live="polite">
  <div class="lab">
   <div class="lt">粗利率 <small id="thl"></small></div>
@@ -234,7 +237,7 @@ body.ro input[readonly],body.ro textarea[readonly]{background:var(--soft)}
   <button id="bRate" style="width:100%">最新レートを読み込む</button>
   <p class="hint">三菱UFJ銀行の仲値（TTSとTTBの中間）に、通貨ごとの上乗せを足したレートで、売値・原価とも計算します。上乗せはすべての見積に共通です。KRWは銀行の表示に合わせて100ウォンあたりで表示しています。</p>
  </div>
-  </details>
+  </div>
  </div>
  <div class="card" id="info">
   <h2>見積情報</h2>
@@ -255,6 +258,8 @@ body.ro input[readonly],body.ro textarea[readonly]{background:var(--soft)}
   </div>
   <p class="hint" id="toPrev"></p><p class="hint" id="discHint"></p>
  </div>
+</div>
+<div class="foldbar"><span class="sm" id="sumMini"></span><button type="button" id="bFold" aria-controls="topGrid" aria-expanded="true">折りたたむ ▲</button></div>
 </section>
 
 <section class="band" style="padding-top:0">
@@ -1020,12 +1025,13 @@ $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()})
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#modal').hidden)closeModal();$('#xdlg').hidden=true;$('#pv').hidden=true;$('#gd').hidden=true}});
 $('#bX').addEventListener('click',()=>askExport());
 $('#bV').addEventListener('click',preview);
-{const sb=$('#sumBox');let heroVis=true;const mb=$('#miniBar');
- const upd=()=>{mb.hidden=sb.open&&heroVis};
- try{const o=LS.get('mq.sumOpen',null);if(o===false)sb.open=false}catch(e){}
- sb.addEventListener('toggle',()=>{LS.set('mq.sumOpen',sb.open);upd()});
+{const tw=$('#topWrap'),bf=$('#bFold');let heroVis=true;const mb=$('#miniBar');let open=true;
+ const upd=()=>{mb.hidden=open&&heroVis};
+ const setOpen=(o,save)=>{open=o;tw.classList.toggle('folded',!o);bf.textContent=o?'折りたたむ ▲':'開く ▼';bf.setAttribute('aria-expanded',String(o));if(save)LS.set('mq.sumOpen',o);upd()};
+ try{if(LS.get('mq.sumOpen',null)===false)setOpen(false)}catch(e){}
+ bf.addEventListener('click',()=>{const o=!open;setOpen(o,true);if(!o)tw.scrollIntoView({block:'nearest'})});
  try{new IntersectionObserver(es=>{heroVis=es[0].isIntersecting;upd()},{rootMargin:'-90px 0px 0px 0px'}).observe($('#hero'))}catch(e){heroVis=false}
- $('#mbToggle').addEventListener('click',()=>{sb.open=true;sb.scrollIntoView({block:'start',behavior:'smooth'})});upd()}
+ $('#mbToggle').addEventListener('click',()=>{setOpen(true,true);tw.scrollIntoView({block:'start',behavior:'smooth'})});upd()}
 $('#bLogin').addEventListener('click',async()=>{loginMsg('');const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({hd:DOMAIN,prompt:'select_account'});
  try{await firebase.auth().signInWithPopup(p)}catch(e){const c=e.code||'';if(/popup-blocked|operation-not-supported/.test(c)){try{await firebase.auth().signInWithRedirect(p)}catch(e2){loginMsg('ログインできませんでした（'+(e2.code||e2.message)+'）')}}else if(!/popup-closed|cancelled-popup/.test(c))loginMsg('ログインできませんでした（'+(c||e.message)+'）')}});
 $('#bOut').addEventListener('click',async()=>{await firebase.auth().signOut();location.reload()});
