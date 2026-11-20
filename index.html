@@ -7,9 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>A&amp;L Estimate Lab</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest?v=28">
+<link rel="icon" href="icons/estilab-192.png">
+<link rel="apple-touch-icon" href="icons/estilab-180.png">
 <meta name="apple-mobile-web-app-title" content="EstiLab">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -331,7 +331,7 @@ body.ro input[readonly],body.ro textarea[readonly]{background:var(--soft)}
 </div>
 <div id="conf" hidden role="alertdialog" aria-live="assertive"><div><b id="confT">この見積が、別のタブ（ウィンドウ）で先に変更されました。</b><span>このタブの変更はまだ保存していません。どちらにしますか？</span></div>
  <div class="cb"><button id="cfLatest" class="pri">最新の内容を表示する</button><button id="cfMine">このタブの内容を別の見積として残す</button></div></div>
-<div id="login" hidden><div class="panel lgp"><img src="icons/icon-192.png" alt="" width="72" height="72"><h2>A&amp;L Estimate Lab</h2><p>会社のGoogleアカウント（@alonzo.jp）でログインしてください。</p><button id="bLogin" class="pri">Googleでログイン</button><p class="xw" id="loginMsg"></p></div></div>
+<div id="login" hidden><div class="panel lgp"><img src="icons/estilab-192.png" alt="" width="72" height="72"><h2>A&amp;L Estimate Lab</h2><p>会社のGoogleアカウント（@alonzo.jp）でログインしてください。</p><button id="bLogin" class="pri">Googleでログイン</button><p class="xw" id="loginMsg"></p></div></div>
 <div id="toast" role="status"></div>
 
 <script>
@@ -1071,7 +1071,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.ser
 window.addEventListener('online',fetchRates);
 
 /* 自動更新：公開版（https）だけで動く。新しい版が出ていたら、作業中でないときだけ切り替える。作業中なら次に開いたときに新しい版になる */
-const APP_VER='mq-v27';
+const APP_VER='mq-v28';
 {const IDLE=5*60*1000;let lastAct=Date.now(),newVer=null,timer=null;
  ['pointerdown','keydown','input','change','wheel','touchstart'].forEach(t=>document.addEventListener(t,()=>{lastAct=Date.now()},{capture:true,passive:true}));
  const allSaved=()=>!conflict&&!(CLOUD&&(pendingIds.size||saving));
