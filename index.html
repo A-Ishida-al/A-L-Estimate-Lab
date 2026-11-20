@@ -1071,7 +1071,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.ser
 window.addEventListener('online',fetchRates);
 
 /* 自動更新：公開版（https）だけで動く。新しい版が出ていたら、作業中でないときだけ切り替える。作業中なら次に開いたときに新しい版になる */
-const APP_VER='mq-v26';
+const APP_VER='mq-v27';
 {const IDLE=5*60*1000;let lastAct=Date.now(),newVer=null,timer=null;
  ['pointerdown','keydown','input','change','wheel','touchstart'].forEach(t=>document.addEventListener(t,()=>{lastAct=Date.now()},{capture:true,passive:true}));
  const allSaved=()=>!conflict&&!(CLOUD&&(pendingIds.size||saving));
