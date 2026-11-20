@@ -114,7 +114,11 @@ details summary{font-weight:700;font-size:20px;cursor:pointer;min-height:44px;di
 details[open] summary{margin-bottom:14px}
 footer{padding:0 max(5vw,16px) 40px;color:var(--mut);font-size:13px}
 #modal{position:fixed;inset:0;z-index:50;background:rgba(4,20,13,.55);display:grid;place-items:center;padding:16px}
-#modal[hidden],#xdlg[hidden],#pv[hidden],#gd[hidden],#imp[hidden],#conf[hidden]{display:none}
+#modal[hidden],#xdlg[hidden],#pv[hidden],#gd[hidden],#imp[hidden],#conf[hidden],#login[hidden],#roBar[hidden],#memSet[hidden],#lsTools[hidden]{display:none}
+#login{position:fixed;inset:0;z-index:90;background:var(--bg);display:grid;place-items:center;padding:16px}.lgp{text-align:center;max-width:420px}.lgp h2{margin:10px 0 8px}.lgp button{margin-top:10px;width:100%}
+#roBar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;background:light-dark(#fff4d6,#3a2e0e);color:light-dark(#5a4300,#ffe3a0);padding:12px max(5vw,16px)}#roBar span{flex:1 1 300px;font-size:14px}
+body.ro .catbtn .ib:not(.cp),body.ro .add:not(#bPaste),body.ro .c-del,body.ro .tg,body.ro .dall,body.ro #bAddCat{display:none!important}
+body.ro input[readonly],body.ro textarea[readonly]{background:var(--soft)}
 #conf{position:fixed;left:12px;right:12px;top:12px;z-index:70;background:var(--red);color:#fff;border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.3)}
 #conf span{display:block;font-size:14px;opacity:.95}#conf>div:first-child{flex:1 1 300px}.cb{display:flex;flex-wrap:wrap;gap:8px}#conf button:not(.pri){background:transparent;color:#fff;border-color:rgba(255,255,255,.7)}#conf .pri{background:#fff;color:var(--red);border-color:#fff}
 #imp{position:fixed;inset:0;z-index:57;background:rgba(4,20,13,.55);display:grid;place-items:center;padding:16px}
@@ -167,12 +171,13 @@ footer{padding:0 max(5vw,16px) 40px;color:var(--mut);font-size:13px}
 <header class="top">
  <div class="brand"><b>A&amp;L Estimate Lab</b><span>JPY・USD・EUR・KRW・CNY／粗利はJPY換算</span></div>
  <nav class="acts">
-  <span class="saved" id="saved"></span>
+  <span class="saved" id="who"></span><span class="saved" id="saved"></span><button id="bOut" hidden>ログアウト</button>
   <button id="bInst" hidden>アプリとして追加</button><button id="bNew">新規</button><button id="bList">保存一覧</button><button id="bImp2">Excel読み込み</button><input id="impFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
   <button id="bX" class="pri">Excel書き出し（社外用＋社内用）</button><button id="bV">プレビュー</button><button id="bP" class="pri2">PDF書き出し（社外用）</button>
  </nav>
 </header>
 <main>
+<div id="roBar" hidden><b><span id="roWho"></span>の見積です（閲覧のみ）</b><span>編集はできませんが、数字や項目の選択・コピー、書き出しはできます。カテゴリ右上の ⧉ でカテゴリごとコピーし、自分の見積に貼り付けられます。</span><button class="pri" data-act="dupcur">複製して自分の見積にする</button></div>
 <section class="hero" id="hero" data-s="ok" aria-live="polite">
  <div class="lab">
   <div class="lt">粗利率 <small id="thl"></small></div>
@@ -230,6 +235,7 @@ footer{padding:0 max(5vw,16px) 40px;color:var(--mut);font-size:13px}
  <div class="bh"><h2>明細</h2><span id="curNote"></span><span class="dall">詳細ページ：<button type="button" data-act="dtlall" data-v="1">すべて作る</button><button type="button" data-act="dtlall" data-v="0">すべて作らない</button></span></div>
  <div id="cats"></div>
  <button class="add big" id="bAddCat">＋ カテゴリを追加</button>
+ <button class="add big" id="bPaste" hidden style="margin-top:8px"></button>
 </section>
 
 <section class="band" style="padding-top:0">
@@ -249,6 +255,10 @@ footer{padding:0 max(5vw,16px) 40px;color:var(--mut);font-size:13px}
    <label>粗利の警告ライン %<input id="thIn" type="number" inputmode="decimal" step="any"></label>
   </div>
   <h3 class="sh">Googleドライブ自動保存</h3><div id="drvSet"><p class="hint">確認中…</p></div>
+  <div id="memSet" hidden><h3 class="sh">メンバー管理（オーナーのみ）</h3>
+   <div class="fg"><label class="s4">招待リスト（1行に1人のメールアドレス。ここにない人がログインすると通知します）<textarea id="memInv" rows="4"></textarea></label>
+   <label class="s4">オーナー（全員の見積の編集・削除ができる人）<textarea id="memOwn" rows="2"></textarea></label></div>
+   <div class="bk"><button id="memSave" class="pri">メンバーを保存</button><button id="memLog">最近のログインを見る</button></div><ul id="loginLog" class="gdl"></ul></div>
   <h3 class="sh">登録した科目</h3><div id="accList" class="tags"></div>
   <p class="hint">ここの内容はすべての見積で共通です。見積データはこの端末のブラウザに保存されます。別の端末へ移すときは「保存一覧」のバックアップを使ってください。</p>
  </details>
@@ -259,6 +269,7 @@ footer{padding:0 max(5vw,16px) 40px;color:var(--mut);font-size:13px}
 <div id="modal" hidden>
  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="mh">
   <div class="ph"><h2 id="mh">保存した見積</h2><button id="bClose">閉じる</button></div>
+  <div class="bk" id="lsTools" hidden style="margin:0 0 6px;border:0;padding:0"><button data-lf="all">全員の見積</button><button data-lf="mine">自分の見積</button><button id="bMig" hidden>この端末の見積を共有に移す</button></div>
   <ul id="list"></ul>
   <div class="bk"><button id="bExp">バックアップを書き出す（JSON）</button><label class="bkl"><button id="bImpB" type="button">バックアップを読み込む</button><input id="bImp" type="file" accept=".json,application/json" hidden></label></div>
  </div>
@@ -287,8 +298,9 @@ footer{padding:0 max(5vw,16px) 40px;color:var(--mut);font-size:13px}
   <div class="xbtns" id="impBtns"></div>
  </div>
 </div>
-<div id="conf" hidden role="alertdialog" aria-live="assertive"><div><b>この見積が、別のタブ（ウィンドウ）で先に変更されました。</b><span>このタブの変更はまだ保存していません。どちらにしますか？</span></div>
+<div id="conf" hidden role="alertdialog" aria-live="assertive"><div><b id="confT">この見積が、別のタブ（ウィンドウ）で先に変更されました。</b><span>このタブの変更はまだ保存していません。どちらにしますか？</span></div>
  <div class="cb"><button id="cfLatest" class="pri">最新の内容を表示する</button><button id="cfMine">このタブの内容を別の見積として残す</button></div></div>
+<div id="login" hidden><div class="panel lgp"><img src="icons/icon-192.png" alt="" width="72" height="72"><h2>A&amp;L Estimate Lab</h2><p>会社のGoogleアカウント（@alonzo.jp）でログインしてください。</p><button id="bLogin" class="pri">Googleでログイン</button><p class="xw" id="loginMsg"></p></div></div>
 <div id="toast" role="status"></div>
 
 <script>
@@ -318,6 +330,11 @@ if(!settings.buffer)settings.buffer={USD:3,EUR:3,CNY:0.5,KRW:0.002};
 if(!Array.isArray(settings.accounts))settings.accounts=['運営制作費','ラウンジ費','美術費','キャスティング費'];
 let rates=LS.get('mq.rates2',null)||{v:JSON.parse(JSON.stringify(REF.v)),manual:{},auto:null,date:REF.date,at:null,kind:'ref'};
 rates.ok=false;rates.loading=true;
+/* ===== 共有モード（Firebase）の設定。設定値が入っていれば、ログイン＋共有データで動く ===== */
+const FB_CONFIG={apiKey:"AIzaSyCQzM-vSbBjDNI25heeJl7a7yjszWZNPMY",authDomain:"a-l-estimate-lab.firebaseapp.com",projectId:"a-l-estimate-lab",storageBucket:"a-l-estimate-lab.firebasestorage.app",messagingSenderId:"226991467627",appId:"1:226991467627:web:8f35dfa49f4c2746f4152e"};
+const NOTIFY_URL='';             /* ← Apps Script のウェブアプリURL（招待リスト外ログインの通知） */
+const OWNER0='airi_ishida@alonzo.jp',DOMAIN='alonzo.jp';
+const CLOUD=!!FB_CONFIG&&location.protocol==='https:'&&(()=>{try{return window.self===window.top}catch(e){return false}})();
 let quotes=LS.get('mq.quotes',null);
 let curId=LS.get('mq.cur',null);
 let undoSnap=null,hosted=false;
@@ -332,6 +349,7 @@ function blankQuote(){return{id:uid(),title:'',client:'',honor:'御中',attn:'',
  cats:['運営制作費','ラウンジ費','美術費','キャスティング費'].map(n=>({id:uid(),name:n,rows:[R('','',1,1,'','JPY','','JPY')]}))}}
 if(!Array.isArray(quotes)||!quotes.length)quotes=[sampleQuote()];
 if(!quotes.find(x=>x.id===curId))curId=quotes[0].id;
+let localQuotes=null;if(CLOUD){localQuotes=LS.get('mq.quotes',[])||[];quotes=[blankQuote()];curId=quotes[0].id}
 const Q=()=>quotes.find(x=>x.id===curId);
 
 /* 売値はTTB、原価はTTSで円にし、提出通貨へはTTBで戻す（提出通貨で受け取った額を円にするレート） */
@@ -371,7 +389,7 @@ function rowH(r,ci,ri){const n=(f,v)=>`<input data-rf="${f}" type="number" input
 <button class="ib c-del" data-act="delrow" title="行を削除" aria-label="行を削除">×</button></div>`}
 function renderCats(){const q=Q();$('#cats').innerHTML=q.cats.map((c,ci)=>`<section class="cat" data-ci="${ci}">
 <div class="cath"><div class="cname"><input class="catname" data-cf="name" value="${esc(c.name)}" aria-label="カテゴリ名（自由入力）"><select class="accsel" aria-label="勘定科目から選ぶ">${accOpts()}</select></div><label class="ck dtl" title="2ページ目以降にこのカテゴリの詳細見積を作る"><input type="checkbox" data-cf="detail"${c.detail!==false?' checked':''}> 詳細ページ</label><span class="chip" data-o="cm${ci}"></span><span class="catamt num" data-o="ca${ci}"></span>
-<div class="catbtn"><button class="ib" data-act="up" title="上へ移動" aria-label="上へ移動"${ci?'':' disabled'}>↑</button><button class="ib" data-act="delcat" title="カテゴリを削除" aria-label="カテゴリを削除">×</button></div>
+<div class="catbtn"><button class="ib cp" data-act="copycat" title="このカテゴリをコピー（自分の見積に貼り付けできます）" aria-label="カテゴリをコピー">⧉</button><button class="ib" data-act="up" title="上へ移動" aria-label="上へ移動"${ci?'':' disabled'}>↑</button><button class="ib" data-act="delcat" title="カテゴリを削除" aria-label="カテゴリを削除">×</button></div>
 <input class="catnote" data-cf="note" value="${esc(c.note)}" placeholder="補足（任意）例：但し破損等の保証は別途費用が必須／人件費込み" aria-label="カテゴリの補足"></div>
 <div class="rows"><div class="rh"><span>項目</span><span>内容</span><span>日数</span><span>数量</span><span>単価（売値）</span><span>原価</span><span>金額</span><span>利益率</span><span></span></div>
 ${c.rows.map((r,ri)=>rowH(r,ci,ri)).join('')}</div>
@@ -411,7 +429,7 @@ function refresh(){const q=Q(),k=calc(q),S=q.sub,th=+settings.threshold;
 }
 const fitTA=el=>{el.style.height='auto';el.style.height=Math.max(44,el.scrollHeight+2)+'px'};
 const fitAll=()=>document.querySelectorAll('.ta').forEach(fitTA);
-function renderAll(){fillInfo();fillSettings();renderRates();renderCats();refreshAcc();refresh();setTimeout(fitAll,0)}
+function renderAll(){fillInfo();fillSettings();renderRates();renderCats();refreshAcc();refresh();applyRO();setTimeout(fitAll,0)}
 
 /* ---------- 保存 ---------- */
 /* 複数タブ・ウィンドウ対策：保存のたびに保存済みの内容と合わせる（他のタブで変えた別の見積を消さない）。
@@ -423,15 +441,15 @@ function mergeQuotes(){const st=LS.get('mq.quotes',null);if(!Array.isArray(st))r
   else if(!(knownIds.has(q.id)&&q.id!==curId))out.push(q)}
  for(const x of sm.values())if(!deletedIds.has(x.id))out.push(x);
  quotes=out;if(!quotes.find(x=>x.id===curId)&&quotes.length)curId=quotes[0].id}
-function persist(){if(conflict){$('#saved').textContent='未保存（他のタブとの競合を解決してください）';return}
+function persist(){if(CLOUD){cloudPersist();return}if(conflict){$('#saved').textContent='未保存（他のタブとの競合を解決してください）';return}
  mergeQuotes();const ok=LS.set('mq.quotes',quotes)&&LS.set('mq.cur',curId);knownIds=new Set(quotes.map(x=>x.id));
  $('#saved').textContent=ok?`保存済み ${tm(Date.now())}`:'この環境では保存できません'}
-function commit(struct){Q().updated=Date.now();persist();if(struct){renderCats();fitAll()}refresh()}
-function showConflict(){conflict=true;$('#conf').hidden=false;$('#saved').textContent='未保存（他のタブとの競合を解決してください）'}
-window.addEventListener('storage',e=>{if(e.key!=='mq.quotes')return;const st=LS.get('mq.quotes',[]);if(!Array.isArray(st))return;
+function commit(struct){if(CLOUD&&!canEdit(Q())){toast('この見積は閲覧のみです。「複製して自分の見積にする」から使えます');renderAll();return}Q().updated=Date.now();persist();if(struct){renderCats();fitAll();applyRO()}refresh()}
+function showConflict(cloud){conflict=true;if(cloud)$('#confT').textContent='この見積が、別の人（または別のタブ）で先に変更されました。';$('#conf').hidden=false;$('#saved').textContent='未保存（他のタブとの競合を解決してください）'}
+window.addEventListener('storage',e=>{if(CLOUD||e.key!=='mq.quotes')return;const st=LS.get('mq.quotes',[]);if(!Array.isArray(st))return;
  const s=st.find(x=>x.id===curId),me=Q();const stale=s&&me&&(+s.updated||0)>(+me.updated||0)&&JSON.stringify(s)!==JSON.stringify(me);
  mergeQuotes();knownIds=new Set(quotes.map(x=>x.id));if(stale)showConflict();if(!$('#modal').hidden)renderList()});
-function resolveConflict(keepMine){const st=LS.get('mq.quotes',[]),s=st.find(x=>x.id===curId);conflict=false;$('#conf').hidden=true;
+function resolveConflict(keepMine){if(CLOUD){cloudResolve(keepMine);return}const st=LS.get('mq.quotes',[]),s=st.find(x=>x.id===curId);conflict=false;$('#conf').hidden=true;
  if(keepMine){const mine=JSON.parse(JSON.stringify(Q()));mine.id=uid();mine.title=(mine.title||'')+'（別タブ）';mine.updated=Date.now();
   const i=quotes.findIndex(x=>x.id===curId);if(s&&i>=0)quotes[i]=s;quotes.push(mine);curId=mine.id;persist();renderAll();toast('このタブの内容を「（別タブ）」として別に保存しました')}
  else{const i=quotes.findIndex(x=>x.id===curId);if(s&&i>=0)quotes[i]=s;persist();renderAll();toast('最新の内容を表示しました')}}
@@ -446,6 +464,81 @@ async function fetchRates(){rates.loading=true;renderRates();let got=false;
    rates.v=v;Object.assign(rates,{date:j.date||'',at:Date.now(),kind:'mufg',stale:Array.isArray(j.stale)?j.stale:[]});got=true}}catch(e){}
  rates.loading=false;rates.ok=got;LS.set('mq.rates2',{v:rates.v,date:rates.date,at:rates.at,kind:rates.kind,stale:rates.stale});renderRates();refresh()}
 
+/* ---------- 共有データ（Firebase） ---------- */
+let me=null,roles={owners:[OWNER0],invited:[]},fdb=null,lastSynced={},remoteById={},pendingIds=new Set(),saveTimer=null,saving=false,cloudReady=false,notified=false,listFilter='all';
+const META=['rev','createdBy','createdByName','createdAt','updatedAt','updatedBy','updatedByName'];
+const strip=q=>{const o=JSON.parse(JSON.stringify(q||{}));META.forEach(k=>delete o[k]);return o};
+const sj=q=>JSON.stringify(strip(q));
+const isOwner=()=>!CLOUD||!!(me&&(me.email===OWNER0||(roles.owners||[]).includes(me.email)));
+const canEdit=q=>!CLOUD||!q||isOwner()||!q.createdBy||!!(me&&q.createdBy===me.email);
+const creatorName=q=>!CLOUD?'':(q.createdBy?(me&&q.createdBy===me.email?'自分':(q.createdByName||q.createdBy)):'自分');
+function cloneAsMine(src,suffix){const o=strip(src);o.id=uid();o.title=(o.title||'')+(suffix||'');o.date=today();o.updated=Date.now();o.cats.forEach(c=>{c.id=uid();c.rows.forEach(r=>r.id=uid())});if(CLOUD&&me){o.createdBy=me.email;o.createdByName=me.name}return o}
+const setSaved=()=>{$('#saved').textContent=`共有に保存済み ${tm(Date.now())}`};
+function cloudPersist(){LS.set('mq.cur',curId);if(!me)return;const q=Q();if(q&&canEdit(q)&&sj(q)!==lastSynced[q.id])pendingIds.add(q.id);
+ if(!pendingIds.size)return;$('#saved').textContent='保存中…';clearTimeout(saveTimer);saveTimer=setTimeout(flushSaves,800)}
+async function flushSaves(){if(saving){clearTimeout(saveTimer);saveTimer=setTimeout(flushSaves,500);return}saving=true;let err=null;
+ try{for(const id of [...pendingIds]){const q=quotes.find(x=>x.id===id);if(conflict&&id===curId)continue;
+   if(!q||!canEdit(q)||sj(q)===lastSynced[id]){pendingIds.delete(id);continue}
+   try{await cloudSave(q);pendingIds.delete(id)}catch(e){pendingIds.delete(id);if(e&&e.code==='conflict'){if(id===curId)showConflict(true);else toast('別の人が先に更新したため、保存できなかった見積があります')}else err=e}}}
+ finally{saving=false}
+ if(err)$('#saved').textContent='保存できませんでした（'+(err.code||err.message||err)+'）。通信を確認してください';else if(!conflict)setSaved()}
+async function cloudSave(q){const ref=fdb.collection('quotes').doc(q.id),body=strip(q),json=JSON.stringify(body);let newRev=1,base=null;
+ await fdb.runTransaction(async tx=>{const s=await tx.get(ref),ts=firebase.firestore.FieldValue.serverTimestamp();
+  if(!s.exists){base={createdBy:me.email,createdByName:me.name,createdAt:ts};newRev=1}
+  else{const cur=s.data();if((cur.rev||0)!==(q.rev||0)){const e=new Error('conflict');e.code='conflict';throw e}
+   base={createdBy:cur.createdBy,createdByName:cur.createdByName||'',createdAt:cur.createdAt||ts};newRev=(cur.rev||0)+1}
+  tx.set(ref,{...body,...base,rev:newRev,updatedAt:ts,updatedBy:me.email,updatedByName:me.name})});
+ q.rev=newRev;q.createdBy=base.createdBy;q.createdByName=base.createdByName;lastSynced[q.id]=json}
+function startSync(){fdb.collection('quotes').onSnapshot(snap=>{const remote=new Map();snap.forEach(d=>{const x=d.data();x.id=d.id;remote.set(d.id,x)});remoteById=Object.fromEntries(remote);
+  const out=[];let rerender=!cloudReady;
+  for(const [id,r] of remote){const loc=quotes.find(x=>x.id===id),rj=sj(r);
+   if(!loc){out.push(r);lastSynced[id]=rj;continue}
+   const unsynced=lastSynced[id]!==undefined&&sj(loc)!==lastSynced[id];
+   if((r.rev||0)>(loc.rev||0)){if(unsynced&&id===curId&&canEdit(loc)){out.push(loc);showConflict(true)}else{out.push(r);lastSynced[id]=rj;if(id===curId)rerender=true}}
+   else{out.push(loc);if(lastSynced[id]===undefined)lastSynced[id]=rj}}
+  for(const q of quotes)if(!remote.has(q.id)){if(lastSynced[q.id]===undefined)out.push(q);else if(q.id===curId)toast('開いていた見積が削除されました')}
+  const wasCur=curId;quotes=out;
+  if(!cloudReady){const lc=LS.get('mq.cur',null),mine=quotes.filter(x=>x.createdBy===me.email).sort((a,b)=>b.updated-a.updated);
+   const pick=quotes.find(x=>x.id===lc&&lastSynced[x.id]!==undefined)||mine[0]||quotes.filter(x=>lastSynced[x.id]!==undefined).sort((a,b)=>b.updated-a.updated)[0];
+   if(pick){quotes=quotes.filter(x=>lastSynced[x.id]!==undefined);curId=pick.id}else{const n=quotes[0]||blankQuote();n.createdBy=me.email;n.createdByName=me.name;quotes=[...quotes.filter(x=>x!==n),n];curId=n.id}}
+  else if(!quotes.find(x=>x.id===curId)){const n=quotes.slice().sort((a,b)=>b.updated-a.updated)[0];if(n)curId=n.id;else{const b=blankQuote();b.createdBy=me.email;b.createdByName=me.name;quotes.push(b);curId=b.id}rerender=true}
+  if(wasCur!==curId)rerender=true;
+  if(rerender){cloudReady=true;renderAll()}else refresh();applyRO();if(!$('#modal').hidden)renderList()},
+ e=>toast('共有データを読み込めません（'+(e.code||e.message)+'）'))}
+function cloudResolve(keepMine){const r=remoteById[curId];conflict=false;$('#conf').hidden=true;const i=quotes.findIndex(x=>x.id===curId);
+ if(keepMine){const mine=cloneAsMine(Q(),'（コピー）');if(r&&i>=0){quotes[i]=JSON.parse(JSON.stringify(r));lastSynced[r.id]=sj(r)}quotes.push(mine);curId=mine.id;pendingIds.add(mine.id);persist();renderAll();toast('自分の変更を「（コピー）」として別に保存しました')}
+ else{if(r&&i>=0){quotes[i]=JSON.parse(JSON.stringify(r));lastSynced[r.id]=sj(r)}renderAll();toast('最新の内容を表示しました')}}
+function applyRO(){const q=Q(),ro=CLOUD&&!canEdit(q);document.body.classList.toggle('ro',ro);
+ const bar=$('#roBar');if(bar){bar.hidden=!ro;if(ro)$('#roWho').textContent=(q.createdByName||q.createdBy||'他の人')+'さん'}
+ document.querySelectorAll('#info input,#info textarea,#cats input:not([type=checkbox]),#cats textarea').forEach(e=>{e.readOnly=ro});
+ document.querySelectorAll('#info select,#cats select,#cats input[type=checkbox]').forEach(e=>{if(e.id==='honorSel'&&!ro)return;e.disabled=ro});
+ if(!ro){const hs=$('#honorSel');if(hs)hs.disabled=q.lang==='en'}
+ const clip=LS.get('mq.clip',null),bp=$('#bPaste');if(bp){bp.hidden=ro||!clip;if(clip)bp.textContent=`＋ コピーしたカテゴリ「${clip.name||'無名'}」を貼り付け`}
+ const who=$('#who');if(who)who.textContent=CLOUD&&me?`${me.name}${isOwner()?'（オーナー）':''}`:'';$('#bOut').hidden=!(CLOUD&&me);
+ $('#memSet').hidden=!(CLOUD&&me&&isOwner())}
+const loginMsg=t=>{$('#loginMsg').textContent=t};
+async function initCloud(){$('#login').hidden=false;
+ try{const v='10.14.1',b=`https://www.gstatic.com/firebasejs/${v}/`;if(!window.firebase){await loadScript(b+'firebase-app-compat.js');await loadScript(b+'firebase-auth-compat.js');await loadScript(b+'firebase-firestore-compat.js')}}
+ catch(e){loginMsg('ログインの仕組みを読み込めませんでした。通信を確認して再読み込みしてください');return}
+ firebase.initializeApp(FB_CONFIG);fdb=firebase.firestore();try{await fdb.enablePersistence({synchronizeTabs:true})}catch(e){}
+ firebase.auth().onAuthStateChanged(u=>{if(u)onLogin(u);else{me=null;$('#login').hidden=false}})}
+async function onLogin(u){const email=String(u.email||'').toLowerCase();
+ if(!email.endsWith('@'+DOMAIN)){try{await firebase.auth().signOut()}catch(e){}loginMsg(`@${DOMAIN} のGoogleアカウントでログインしてください（${email}）`);return}
+ me={email,name:u.displayName||email};$('#login').hidden=true;
+ fdb.collection('logins').add({email,name:me.name,at:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{});
+ fdb.collection('config').doc('roles').onSnapshot(d=>{const x=d.exists?d.data():{};roles={owners:[OWNER0,...(x.owners||[]).filter(e=>e!==OWNER0)],invited:x.invited||[]};checkInvite();applyRO();renderMem();if(!$('#modal').hidden)renderList()},()=>{});
+ startSync()}
+function checkInvite(){if(!me||notified)return;if(me.email===OWNER0||roles.owners.includes(me.email)||roles.invited.includes(me.email))return;notified=true;
+ if(NOTIFY_URL)fetch(NOTIFY_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({email:me.email,name:me.name})}).catch(()=>{})}
+function renderMem(){if(!(CLOUD&&me&&isOwner()))return;const a=$('#memInv'),b=$('#memOwn');if(document.activeElement!==a)a.value=(roles.invited||[]).join('\n');if(document.activeElement!==b)b.value=(roles.owners||[]).join('\n')}
+async function loadLogins(){if(!(CLOUD&&me&&isOwner()))return;const L=$('#loginLog');L.innerHTML='<li class="hint">読み込み中…</li>';
+ try{const s=await fdb.collection('logins').orderBy('at','desc').limit(40).get();const rows=[];s.forEach(d=>rows.push(d.data()));
+  L.innerHTML=rows.map(r=>{const t=r.at&&r.at.toDate?r.at.toDate():null,inv=r.email===OWNER0||roles.owners.includes(r.email)||roles.invited.includes(r.email);
+   return `<li><div><b>${esc(r.name||r.email)}</b><span>${esc(r.email)}　${t?esc(t.toLocaleString('ja-JP')):''}</span></div>${inv?'':'<span class="chip" data-s="bad">招待外</span>'}</li>`}).join('')||'<li class="hint">まだ記録がありません</li>'}
+ catch(e){L.innerHTML=`<li class="hint">読み込めませんでした（${esc(e.code||e.message)}）</li>`}}
+async function migrateLocal(){const L=(localQuotes||[]).filter(x=>x&&Array.isArray(x.cats));if(!L.length){toast('この端末に移す見積はありません');return}
+ let n=0;for(const x of L){const o=cloneAsMine(x,'');o.date=x.date||o.date;quotes.push(o);try{await cloudSave(o);n++}catch(e){}}
+ LS.set('mq.migrated',Date.now());toast(`${n}件の見積を共有に移しました`);renderList()}
 /* ---------- Excel ---------- */
 /* 宛先表記：日本語は「御中／様／なし」。担当者名があれば「会社名（改行）担当者名 様」（御中と様は重ねない）。英語は To: ／ Attn: */
 function toLines(q){const c=String(q.client||'').trim(),a=String(q.attn||'').trim(),h=q.honor??'御中';
@@ -732,7 +825,7 @@ function buildImport(sel){const{sheets,total}=impData,useT=total&&sel.includes(t
  return{q,orig}}
 function doImport(){const sel=[...document.querySelectorAll('#impBody [data-i]')].filter(i=>i.checked).map(i=>impData.sheets[+i.dataset.i]);
  if(!sel.length){toast('シートを1つ以上選んでください');return}
- const{q,orig}=buildImport(sel);quotes.push(q);curId=q.id;persist();renderAll();
+ const{q,orig}=buildImport(sel);if(CLOUD&&me){q.createdBy=me.email;q.createdByName=me.name}quotes.push(q);curId=q.id;persist();renderAll();
  const k=calc(q),nRows=q.cats.reduce((a,c)=>a+c.rows.length,0),noCost=q.cats.reduce((a,c)=>a+c.rows.filter(r=>+r.price&&!+r.cost).length,0),same=orig!=null&&Math.abs(k.sub-orig)<1;
  $('#impBody').innerHTML=`<div class="isum">読み込みました：カテゴリ ${q.cats.length}件・明細 ${nRows}行<br>
   小計（税抜）：アプリ ${fmt(k.sub,'JPY')}　／　元のExcel ${orig!=null?fmt(orig,'JPY'):'不明'}　${orig==null?'':same?'<b class="ok">一致</b>':'<b class="ng">差があります</b>'}<br>
@@ -818,7 +911,7 @@ function askExport(mode){if(mode)xMode=mode;xUsed=usedCur(Q());
 function askManual(){$('#xbody').innerHTML=`<p>計算に使うレートを入力してください。</p>`+(xMode==='pdf'?'<ul class="xd"><li>入力したレートで計算した見積だけをPDFにします</li></ul>':`<ul class="xd"><li>社外用：入力したレートで計算した見積<b>だけ</b>を書き出します（正規レートは入りません）</li><li>社内用：正規レートのシートに、入力したレートのシートを「（手動レート）」として追加します</li></ul>`)+xUsed.map(c=>`<label class="xr"><span>${SYM[c]}${UNIT(c)} =</span><input data-xr="${c}" type="number" inputmode="decimal" step="any" value="${+(rStd(c)*UNIT(c)).toFixed(4)}"><span>円</span></label>`).join('')+'<p class="xw" id="xerr"></p>';
  $('#xbtns').innerHTML='<button class="pri" data-x="manual">このレートで書き出す</button><button data-x="back">戻る</button><button data-x="cancel">キャンセル</button>';
  const f=$('#xbody input');f&&(f.focus(),f.select())}
-$('#xdlg').addEventListener('input',e=>{if(e.target.id==='fnNote'){const q=Q();q.fileNote=e.target.value;q.updated=Date.now();persist();$('#fnPrev').textContent=fnPreview()}});
+$('#xdlg').addEventListener('input',e=>{if(e.target.id==='fnNote'){const q=Q();if(CLOUD&&!canEdit(q)){q.fileNote=e.target.value;$('#fnPrev').textContent=fnPreview();return}q.fileNote=e.target.value;q.updated=Date.now();persist();$('#fnPrev').textContent=fnPreview()}});
 $('#xdlg').addEventListener('change',e=>{if(e.target.id==='drvOn'){settings.drive.on=e.target.checked;LS.set('mq.settings',settings);renderDriveSet();const r=$('#xbody .xdr');if(r)r.outerHTML=driveRow()}});
 $('#xdlg').addEventListener('click',async e=>{const b=e.target.closest('[data-x]');if(e.target.id==='xdlg'){$('#xdlg').hidden=true;return}if(!b)return;const x=b.dataset.x;
  if(x==='cancel')$('#xdlg').hidden=true;
@@ -831,28 +924,34 @@ $('#xdlg').addEventListener('click',async e=>{const b=e.target.closest('[data-x]
   $('#xdlg').hidden=true;runExport({used:xUsed.slice(),vals:m,R:c=>c==='JPY'?1:(m[c]??rStd(c))})}});
 
 /* ---------- 一覧 ---------- */
-function renderList(){const L=quotes.slice().sort((a,b)=>b.updated-a.updated);
- $('#list').innerHTML=L.map(x=>{const k=calc(x);return `<li data-id="${x.id}" class="${x.id===curId?'cur':''}"><div><b>${esc(x.title||'（案件名なし）')}</b><span>${esc(x.client||'宛先なし')}・${esc(x.date)}・更新 ${tm(x.updated)}</span></div><span class="num">${fmt(k.total,x.sub)}</span><span class="chip" data-s="${stat(k.m)}">${pct(k.m)}</span>
- <div class="lb"><button data-act="open">開く</button><button data-act="dup">複製</button><button data-act="del">削除</button></div></li>`}).join('')}
+function renderList(){const L=quotes.slice().filter(x=>!CLOUD||listFilter==='all'||x.createdBy===(me&&me.email)||!x.createdBy).sort((a,b)=>b.updated-a.updated);
+ $('#lsTools').hidden=!CLOUD;$('#bMig').hidden=!(CLOUD&&me&&(localQuotes||[]).length&&!LS.get('mq.migrated',null));document.querySelectorAll('[data-lf]').forEach(b=>b.classList.toggle('pri',b.dataset.lf===listFilter));
+ $('#list').innerHTML=L.map(x=>{const k=calc(x);return `<li data-id="${x.id}" class="${x.id===curId?'cur':''}"><div><b>${esc(x.title||'（案件名なし）')}</b><span>${esc(x.client||'宛先なし')}・${esc(x.date)}・更新 ${tm(x.updated)}${CLOUD?'・作成 '+esc(creatorName(x)):''}${CLOUD&&!canEdit(x)?'（閲覧のみ）':''}</span></div><span class="num">${fmt(k.total,x.sub)}</span><span class="chip" data-s="${stat(k.m)}">${pct(k.m)}</span>
+ <div class="lb"><button data-act="open">開く</button><button data-act="dup">複製</button>${isOwner()?'<button data-act="del">削除</button>':''}</div></li>`}).join('')||'<li class="hint">見積がありません</li>'}
 const openModal=()=>{renderList();$('#modal').hidden=false;$('#bClose').focus()};
 const closeModal=()=>{$('#modal').hidden=true};
 
 /* ---------- イベント ---------- */
+const EDIT_ACTS=['addrow','delrow','delcat','up','target','dtlall'];
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const act=b.dataset.act,q=Q();
+ if(EDIT_ACTS.includes(act)&&CLOUD&&!canEdit(q)){toast('この見積は閲覧のみです');return}
+ if(act==='copycat'){const c=q.cats[+b.closest('.cat').dataset.ci];LS.set('mq.clip',JSON.parse(JSON.stringify(c)));applyRO();toast(`「${c.name}」をコピーしました。自分の見積で「貼り付け」できます`);return}
+ if(act==='dupcur'){const o=cloneAsMine(q,'（コピー）');quotes.push(o);curId=o.id;persist();renderAll();window.scrollTo(0,0);toast('自分の見積として複製しました。自由に編集できます');return}
  const cat=b.closest('.cat'),ci=cat?+cat.dataset.ci:-1,rw=b.closest('.row'),ri=rw?+rw.dataset.ri:-1,li=b.closest('#list li');
  if(act==='addrow'){const rs=q.cats[ci].rows,p=rs[rs.length-1];rs.push(R('','',1,1,'',p?p.pc:q.sub,'',p?p.cc:q.sub));commit(true);const ins=document.querySelectorAll(`.cat[data-ci="${ci}"] .row [data-rf="item"]`);ins[ins.length-1]?.focus()}
  else if(act==='delrow'){snap();q.cats[ci].rows.splice(ri,1);commit(true);toast('行を削除しました',true)}
  else if(act==='delcat'){snap();const n=q.cats[ci].name;q.cats.splice(ci,1);commit(true);toast(`「${n}」を削除しました`,true)}
  else if(act==='up'&&ci>0){[q.cats[ci-1],q.cats[ci]]=[q.cats[ci],q.cats[ci-1]];commit(true)}
  else if(act==='target'){const r=q.cats[ci].rows[ri],t=targetVal(r,q);if(t!=null){r.price=t;commit(true)}}
- else if(act==='undo'&&undoSnap){const i=quotes.findIndex(x=>x.id===undoSnap.id);if(i>=0){quotes[i]=JSON.parse(undoSnap.json);quotes[i].updated=Date.now();curId=undoSnap.id;undoSnap=null;persist();renderAll();$('#toast').classList.remove('on')}}
+ else if(act==='undo'&&undoSnap){const i=quotes.findIndex(x=>x.id===undoSnap.id);if(i>=0){const keep={};META.forEach(k=>{if(quotes[i][k]!==undefined)keep[k]=quotes[i][k]});quotes[i]=Object.assign(JSON.parse(undoSnap.json),keep);quotes[i].updated=Date.now();curId=undoSnap.id;undoSnap=null;persist();renderAll();$('#toast').classList.remove('on')}}
  else if(act==='dtlall'){q.cats.forEach(c=>c.detail=b.dataset.v==='1');commit(true);toast(b.dataset.v==='1'?'すべてのカテゴリで詳細ページを作ります':'詳細ページを作らず、1ページ目（トータル）だけにします')}
  else if(act==='accdel'){settings.accounts.splice(+b.dataset.i,1);LS.set('mq.settings',settings);refreshAcc()}
 
  else if(li){const id=li.dataset.id;
   if(act==='open'){curId=id;persist();renderAll();closeModal()}
-  else if(act==='dup'){const o=JSON.parse(JSON.stringify(quotes.find(x=>x.id===id)));o.id=uid();o.title=(o.title||'')+'（コピー）';o.date=today();o.updated=Date.now();o.cats.forEach(c=>{c.id=uid();c.rows.forEach(r=>r.id=uid())});quotes.push(o);curId=o.id;persist();renderAll();closeModal();toast('複製しました')}
-  else if(act==='del'){if(!b.dataset.arm){b.dataset.arm='1';b.textContent='本当に削除する';return}
+  else if(act==='dup'){const o=cloneAsMine(quotes.find(x=>x.id===id),'（コピー）');quotes.push(o);curId=o.id;persist();renderAll();closeModal();toast('複製しました')}
+  else if(act==='del'){if(!isOwner()){toast('削除はオーナーだけができます');return}if(!b.dataset.arm){b.dataset.arm='1';b.textContent='本当に削除する';return}
+   if(CLOUD){fdb.collection('quotes').doc(id).delete().then(()=>toast('削除しました')).catch(e=>toast('削除できませんでした（'+(e.code||e.message)+'）'));return}
    deletedIds.add(id);quotes=quotes.filter(x=>x.id!==id);if(!quotes.length)quotes.push(blankQuote());if(!quotes.find(x=>x.id===curId))curId=quotes[0].id;persist();renderAll();renderList()}}
 });
 $('#cats').addEventListener('input',e=>{const el=e.target,cat=el.closest('.cat');if(el.classList.contains('ta'))fitTA(el);if(!cat||el.classList.contains('accsel'))return;const c=Q().cats[+cat.dataset.ci];
@@ -860,21 +959,31 @@ $('#cats').addEventListener('input',e=>{const el=e.target,cat=el.closest('.cat')
 $('#cats').addEventListener('change',e=>{const el=e.target,cat=el.closest('.cat');if(!cat)return;const c=Q().cats[+cat.dataset.ci];
  if(el.classList.contains('accsel')){if(!el.value)return;c.name=el.value;el.value='';cat.querySelector('.catname').value=c.name;commit(false)}
  else if(el.dataset.cf==='name')remember(el.value)});
-$('#info').addEventListener('input',e=>{const f=e.target.dataset.f;if(!f)return;const q=Q();
+$('#info').addEventListener('input',e=>{const f=e.target.dataset.f;if(!f)return;const q=Q();if(CLOUD&&!canEdit(q))return;
  if(f==='sub'&&q.discType==='amt'&&+q.disc){q.disc=conv(q.disc,q.sub,e.target.value);$('[data-f="disc"]').value=q.disc;toast(`値引き金額を ${e.target.value} に換算しました`)}
  q[f]=e.target.value;commit(false)});
 $('#setbox').addEventListener('input',e=>{const el=e.target;if(el.dataset.is)settings.issuer[el.dataset.is]=el.value;else if(el.dataset.ie)settings.issuerEn[el.dataset.ie]=el.value;else if(el.id==='thIn')settings.threshold=+el.value||0;else return;LS.set('mq.settings',settings);refresh()});
 $('#rgrid').addEventListener('input',e=>{const c=e.target.dataset.buf;if(!c)return;settings.buffer[c]=(+e.target.value||0)/UNIT(c);LS.set('mq.settings',settings);refresh()});
 
 $('#bRate').addEventListener('click',fetchRates);
+$('#bPaste').addEventListener('click',()=>{const clip=LS.get('mq.clip',null),q=Q();if(!clip||!canEdit(q))return;const c=JSON.parse(JSON.stringify(clip));c.id=uid();c.rows.forEach(r=>r.id=uid());q.cats.push(c);commit(true);toast(`「${c.name}」を貼り付けました`)});
 $('#bAddCat').addEventListener('click',()=>{const q=Q();q.cats.push({id:uid(),name:'新しいカテゴリ',rows:[R('','',1,1,'',q.sub,'',q.sub)]});commit(true);const ns=document.querySelectorAll('.catname');ns[ns.length-1]?.select();ns[ns.length-1]?.scrollIntoView({block:'center'})});
-$('#bNew').addEventListener('click',()=>{const n=blankQuote();quotes.push(n);curId=n.id;persist();renderAll();window.scrollTo(0,0);toast('新しい見積を作りました')});
+$('#bNew').addEventListener('click',()=>{const n=blankQuote();if(CLOUD&&me){n.createdBy=me.email;n.createdByName=me.name}quotes.push(n);curId=n.id;persist();renderAll();window.scrollTo(0,0);toast('新しい見積を作りました')});
 $('#bList').addEventListener('click',openModal);$('#bClose').addEventListener('click',closeModal);
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#modal').hidden)closeModal();$('#xdlg').hidden=true;$('#pv').hidden=true;$('#gd').hidden=true}});
 $('#bX').addEventListener('click',()=>askExport('xlsx'));
 $('#bP').addEventListener('click',()=>askExport('pdf'));
 $('#bV').addEventListener('click',preview);
+$('#bLogin').addEventListener('click',async()=>{loginMsg('');const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({hd:DOMAIN,prompt:'select_account'});
+ try{await firebase.auth().signInWithPopup(p)}catch(e){const c=e.code||'';if(/popup-blocked|operation-not-supported/.test(c)){try{await firebase.auth().signInWithRedirect(p)}catch(e2){loginMsg('ログインできませんでした（'+(e2.code||e2.message)+'）')}}else if(!/popup-closed|cancelled-popup/.test(c))loginMsg('ログインできませんでした（'+(c||e.message)+'）')}});
+$('#bOut').addEventListener('click',async()=>{await firebase.auth().signOut();location.reload()});
+$('#memSave').addEventListener('click',async()=>{const parse=t=>[...new Set(t.split(/[\s,、]+/).map(x=>x.trim().toLowerCase()).filter(x=>/@/.test(x)))];
+ const owners=parse($('#memOwn').value);if(!owners.includes(OWNER0))owners.unshift(OWNER0);
+ try{await fdb.collection('config').doc('roles').set({owners,invited:parse($('#memInv').value),updatedBy:me.email});toast('メンバーを保存しました')}catch(e){toast('保存できませんでした（'+(e.code||e.message)+'）')}});
+$('#memLog').addEventListener('click',loadLogins);
+document.addEventListener('click',e=>{const b=e.target.closest('[data-lf]');if(b){listFilter=b.dataset.lf;renderList()}});
+$('#bMig').addEventListener('click',migrateLocal);
 $('#cfLatest').addEventListener('click',()=>resolveConflict(false));$('#cfMine').addEventListener('click',()=>resolveConflict(true));
 $('#bImp2').addEventListener('click',()=>$('#impFile').click());
 $('#impFile').addEventListener('change',e=>{const f=e.target.files[0];if(f)importExcel(f);e.target.value=''});
@@ -892,7 +1001,7 @@ $('#pvPdf').addEventListener('click',()=>{$('#pv').hidden=true;askExport('pdf')}
 $('#bExp').addEventListener('click',()=>saveFile(`見積バックアップ_${today()}.json`,new Blob([JSON.stringify({app:'multi-currency-quote',v:1,quotes,settings},null,1)],{type:'application/json'})));
 $('#bImpB').addEventListener('click',()=>$('#bImp').click());
 $('#bImp').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());const L=Array.isArray(j)?j:j.quotes;if(!Array.isArray(L))throw 0;let n=0;
- L.forEach(x=>{if(!x||!x.id||!Array.isArray(x.cats))return;const i=quotes.findIndex(y=>y.id===x.id);x.updated=Date.now();if(i>=0)quotes[i]=x;else quotes.push(x);n++});if(j.settings&&j.settings.issuer)settings=j.settings,LS.set('mq.settings',settings);
+ L.forEach(x=>{if(!x||!x.id||!Array.isArray(x.cats))return;if(CLOUD){const o=cloneAsMine(x,'');o.date=x.date||o.date;quotes.push(o);pendingIds.add(o.id);n++;return}const i=quotes.findIndex(y=>y.id===x.id);x.updated=Date.now();if(i>=0)quotes[i]=x;else quotes.push(x);n++});if(j.settings&&j.settings.issuer)settings=j.settings,LS.set('mq.settings',settings);
  persist();renderAll();renderList();toast(`${n}件の見積を読み込みました`)}catch(err){toast('読み込めませんでした。バックアップのJSONを選んでください')}e.target.value=''});
 
 /* ---------- アプリ化（PWA） ---------- */
@@ -904,7 +1013,7 @@ $('#bInst').addEventListener('click',async()=>{if(dp){dp.prompt();try{await dp.u
 if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js').then(()=>{hosted=true;if(isIOS&&!standalone)$('#bInst').hidden=false;renderRates()}).catch(()=>{})}catch(e){}}
 window.addEventListener('online',fetchRates);
 
-renderAll();persist();fetchRates();
+renderAll();if(!CLOUD)persist();fetchRates();if(CLOUD)initCloud();
 }
 </script>
 </body>
