@@ -1070,6 +1070,21 @@ $('#bInst').addEventListener('click',async()=>{if(dp){dp.prompt();try{await dp.u
 if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js').then(()=>{hosted=true;if(isIOS&&!standalone)$('#bInst').hidden=false;renderRates()}).catch(()=>{})}catch(e){}}
 window.addEventListener('online',fetchRates);
 
+/* 自動更新：公開版（https）だけで動く。新しい版が出ていたら、作業中でないときだけ切り替える。作業中なら次に開いたときに新しい版になる */
+const APP_VER='mq-v26';
+{const IDLE=5*60*1000;let lastAct=Date.now(),newVer=null,timer=null;
+ ['pointerdown','keydown','input','change','wheel','touchstart'].forEach(t=>document.addEventListener(t,()=>{lastAct=Date.now()},{capture:true,passive:true}));
+ const allSaved=()=>!conflict&&!(CLOUD&&(pendingIds.size||saving));
+ const overlayOpen=()=>['#modal','#xdlg','#pv','#gd','#conf'].some(q=>{const e=$(q);return e&&!e.hidden});
+ const busy=()=>$('#bX').disabled||$('#bV').disabled;
+ const canSwap=()=>allSaved()&&!overlayOpen()&&!busy()&&(document.hidden||Date.now()-lastAct>=IDLE)&&!(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)&&!document.hidden);
+ const trySwap=()=>{if(newVer&&canSwap())location.reload()};
+ async function check(){if(newVer){trySwap();return}
+  try{const r=await fetch('./index.html?v='+Date.now(),{cache:'no-store'});if(!r.ok)return;const m=(await r.text()).match(/const APP_VER='([^']+)'/);
+   if(m&&m[1]!==APP_VER){newVer=m[1];try{const g=await navigator.serviceWorker.getRegistration();g&&g.update()}catch(e){}clearInterval(timer);timer=setInterval(trySwap,30000);trySwap()}}catch(e){}}
+ if(location.protocol==='https:'){timer=setInterval(check,3*60*1000);setTimeout(check,20000);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)newVer?trySwap():check()})}
+ window.__estUpd={check,trySwap,canSwap,get newVer(){return newVer},set newVer(v){newVer=v},setLast(t){lastAct=t}}}
 renderAll();if(!CLOUD)persist();fetchRates();if(CLOUD)initCloud();
 }
 </script>
