@@ -46,7 +46,7 @@ select{padding-inline:6px}
 .lab{background:var(--em);color:#fff;padding:clamp(22px,3.5vw,44px) max(5vw,16px);transition:background .3s}
 .hero[data-s=bad] .lab{background:var(--red)}.hero[data-s=na] .lab{background:#56665e}
 .lt{font-weight:700;display:flex;gap:12px;flex-wrap:wrap;align-items:baseline}.lt small{font-weight:400;font-size:14px;opacity:.9}
-.big{font:800 clamp(64px,12vw,128px)/1 "Schibsted Grotesk",sans-serif;letter-spacing:-.03em;margin:8px 0 18px;font-variant-numeric:tabular-nums}
+.hero .big{font:800 clamp(64px,12vw,128px)/1 "Schibsted Grotesk",sans-serif;letter-spacing:-.03em;margin:8px 0 18px;font-variant-numeric:tabular-nums}
 .meter{position:relative;height:12px;background:rgba(255,255,255,.28);border-radius:6px}
 .meter i{position:absolute;inset:0 auto 0 0;background:#fff;border-radius:6px;transition:width .3s}
 .meter b{position:absolute;top:-7px;bottom:-7px;width:3px;margin-left:-1px;background:#0b1a13}
@@ -1071,7 +1071,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:'){try{navigator.ser
 window.addEventListener('online',fetchRates);
 
 /* 自動更新：公開版（https）だけで動く。新しい版が出ていたら、作業中でないときだけ切り替える。作業中なら次に開いたときに新しい版になる */
-const APP_VER='mq-v29';
+const APP_VER='mq-v30';
 {const IDLE=5*60*1000;let lastAct=Date.now(),newVer=null,timer=null;
  ['pointerdown','keydown','input','change','wheel','touchstart'].forEach(t=>document.addEventListener(t,()=>{lastAct=Date.now()},{capture:true,passive:true}));
  const allSaved=()=>!conflict&&!(CLOUD&&(pendingIds.size||saving));
