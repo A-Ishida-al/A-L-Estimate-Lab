@@ -2,7 +2,7 @@
  "source": "三菱UFJ銀行 公表相場（対顧客外国為替相場）",
  "url": "https://www.murc-kawasesouba.jp/fx/index.php",
  "date": "2026-11-25",
- "fetched_at": "2026-11-25T12:58:29Z",
+ "fetched_at": "2026-11-25T18:00:34Z",
  "note": "KRWは1ウォンあたりの円（銀行の表示は100ウォンあたり）",
  "rates": {
   "USD": {
